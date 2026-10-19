@@ -1,0 +1,37 @@
+# Unity: папки, которые генерируются автоматически
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# Файлы IDE
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.suo
+*.user
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Сборки
+*.apk
+*.aab
+*.app
+*.zip
+*.unitypackage
+
+# macOS
+.DS_Store
+*.slnx
