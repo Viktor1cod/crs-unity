@@ -9,9 +9,10 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+# Unity Personal allows one active seat: run Unity jobs one at a time
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: unity-license
+  cancel-in-progress: false
 
 permissions:
   contents: read
