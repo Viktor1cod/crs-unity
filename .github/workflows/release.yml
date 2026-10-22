@@ -1,5 +1,5 @@
-# Release: по тегу вида v0.1.0 собирает Web и Android (APK)
-# и публикует их в разделе Releases на GitHub.
+# Release: on a tag like v0.1.0, build Web and Android (APK)
+# and publish them as a GitHub Release.
 name: Release
 
 on:
@@ -30,7 +30,7 @@ jobs:
       matrix:
         targetPlatform: [WebGL, Android]
     steps:
-      # Образ Unity для Android большой, освобождаем место на раннере
+      # The Android Unity image is large: free disk space on the runner
       - name: Free disk space
         if: matrix.targetPlatform == 'Android'
         uses: jlumbroso/free-disk-space@v1.3.1
@@ -43,13 +43,6 @@ jobs:
         with:
           lfs: true
           fetch-depth: 0
-
-      - name: Cache Library
-        uses: actions/cache@v4
-        with:
-          path: Library
-          key: Library-${{ matrix.targetPlatform }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: Library-${{ matrix.targetPlatform }}-
 
       - name: Build
         uses: game-ci/unity-builder@v4
