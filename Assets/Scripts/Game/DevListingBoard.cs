@@ -19,7 +19,14 @@ namespace CRS.Game
         private Language lang = Language.Ru;
         private bool showTruth;
         private Vector2 scroll;
-        private GUIStyle title, body, truth;
+        private GUIStyle title, body, truth, button, toggle;
+
+        /// <summary>
+        /// The built-in runtime font has no Cyrillic glyphs in Web builds,
+        /// so the board uses a bundled font from Assets/Resources/Fonts/Main.ttf.
+        /// </summary>
+        private const string FontResource = "Fonts/Main";
+        private Font font;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -42,16 +49,27 @@ namespace CRS.Game
         private void EnsureStyles()
         {
             if (title != null) return;
+
+            font = Resources.Load<Font>(FontResource);
+            if (font == null)
+                Debug.LogWarning($"DevListingBoard: font '{FontResource}' not found, Cyrillic will not render in Web builds.");
+
             int baseSize = Mathf.Max(14, Screen.height / 45);
             title = new GUIStyle(GUI.skin.label) { fontSize = baseSize + 4, fontStyle = FontStyle.Bold, wordWrap = true };
             body = new GUIStyle(GUI.skin.label) { fontSize = baseSize, wordWrap = true };
             truth = new GUIStyle(body);
             truth.normal.textColor = new Color(1f, 0.75f, 0.3f);
+            button = new GUIStyle(GUI.skin.button) { fontSize = baseSize, padding = new RectOffset(16, 16, 8, 8) };
+            toggle = new GUIStyle(GUI.skin.toggle) { fontSize = baseSize };
+
+            if (font != null)
+                foreach (var s in new[] { title, body, truth, button, toggle }) s.font = font;
         }
 
         private void OnGUI()
         {
             EnsureStyles();
+            if (font != null) GUI.skin.font = font;
             float pad = 12;
             var area = new Rect(pad, pad, Screen.width - pad * 2, Screen.height - pad * 2);
             GUI.Box(area, GUIContent.none);
@@ -60,10 +78,11 @@ namespace CRS.Game
             GUILayout.BeginHorizontal();
             GUILayout.Label(lang == Language.Ru ? "Объявления (dev)" : "Listings (dev)", title);
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button(lang == Language.Ru ? "Обновить" : "Refresh", GUILayout.Height(title.fontSize * 2))) Refresh();
-            if (GUILayout.Button(lang == Language.Ru ? "EN" : "RU", GUILayout.Height(title.fontSize * 2)))
+            float h = title.fontSize * 2;
+            if (GUILayout.Button(lang == Language.Ru ? "Обновить" : "Refresh", button, GUILayout.Height(h))) Refresh();
+            if (GUILayout.Button(lang == Language.Ru ? "EN" : "RU", button, GUILayout.Height(h)))
                 lang = lang == Language.Ru ? Language.En : Language.Ru;
-            showTruth = GUILayout.Toggle(showTruth, lang == Language.Ru ? " Правда" : " Truth", GUILayout.Height(title.fontSize * 2));
+            showTruth = GUILayout.Toggle(showTruth, lang == Language.Ru ? " Правда" : " Truth", toggle, GUILayout.Height(h));
             GUILayout.EndHorizontal();
 
             scroll = GUILayout.BeginScrollView(scroll);
