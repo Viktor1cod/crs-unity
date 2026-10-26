@@ -52,6 +52,7 @@ jobs:
   build-web:
     name: Build Web
     needs: test
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
