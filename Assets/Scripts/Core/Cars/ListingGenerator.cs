@@ -46,6 +46,31 @@ namespace CRS.Core.Cars
             return Generate(brand, model);
         }
 
+        /// <summary>
+        /// A random listing with asking price within budget. Falls back to the
+        /// cheapest model in the catalog if random attempts do not fit.
+        /// </summary>
+        public Listing GenerateAffordable(long maxPrice, int attempts = 50)
+        {
+            for (int i = 0; i < attempts; i++)
+            {
+                var listing = Generate();
+                if (listing.AskingPrice <= maxPrice) return listing;
+            }
+
+            BrandSpec cheapestBrand = null;
+            CarModelSpec cheapestModel = null;
+            foreach (var brand in brands)
+                foreach (var model in brand.Models)
+                    if (cheapestModel == null || model.MaxPrice < cheapestModel.MaxPrice)
+                    {
+                        cheapestBrand = brand;
+                        cheapestModel = model;
+                    }
+
+            return Generate(cheapestBrand, cheapestModel);
+        }
+
         public Listing Generate(BrandSpec brand, CarModelSpec model)
         {
             var car = GenerateCar(brand, model);
