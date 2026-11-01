@@ -29,11 +29,27 @@ namespace CRS.Tests
         }
 
         [Test]
-        public void EveryUiStringFormatsWithTwoArguments()
+        public void EveryUiStringFormatsWithThreeArguments()
         {
             foreach (var key in UiText.Table.Keys)
                 foreach (Language lang in Enum.GetValues(typeof(Language)))
-                    Assert.DoesNotThrow(() => UiText.Format(key, lang, "a", "b"), key);
+                    Assert.DoesNotThrow(() => UiText.Format(key, lang, "a", "b", "c"), key);
+        }
+
+        [Test]
+        public void EveryCarComponentHasText()
+        {
+            foreach (CarComponent component in Enum.GetValues(typeof(CarComponent)))
+                Assert.IsTrue(UiText.Table.ContainsKey(UiText.ComponentKey(component)), component.ToString());
+        }
+
+        [Test]
+        public void EveryDealPhraseExists()
+        {
+            foreach (var key in new[] { "deal.accept", "deal.counter.1", "deal.counter.2", "deal.counter.3",
+                         "deal.counter_leverage", "deal.insulted", "deal.final", "deal.left",
+                         "severity.1", "severity.2", "severity.3" })
+                Assert.IsTrue(UiText.Table.ContainsKey(key), key);
         }
 
         [Test]

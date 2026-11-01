@@ -1,4 +1,5 @@
 using CRS.Core.Cars;
+using CRS.Core.Deals;
 
 namespace CRS.Core.Economy
 {
@@ -7,7 +8,9 @@ namespace CRS.Core.Economy
         Success,
         ListingUnavailable,
         GarageFull,
-        NotEnoughMoney
+        NotEnoughMoney,
+        /// <summary>The seller left the negotiation and will not sell to the player.</summary>
+        SellerRefused
     }
 
     /// <summary>Buying a car from the board.</summary>
@@ -17,8 +20,9 @@ namespace CRS.Core.Economy
         public static PurchaseResult TryBuy(PlayerState player, Marketplace market, Listing listing) =>
             TryBuy(player, market, listing, listing.AskingPrice);
 
-        /// <summary>Buy at an agreed price (after haggling, coming in week 4).</summary>
-        public static PurchaseResult TryBuy(PlayerState player, Marketplace market, Listing listing, long price)
+        /// <summary>Buy at an agreed price, keeping what the inspection revealed.</summary>
+        public static PurchaseResult TryBuy(PlayerState player, Marketplace market, Listing listing, long price,
+            InspectionReport report = null)
         {
             if (listing == null || !market.Contains(listing)) return PurchaseResult.ListingUnavailable;
             if (!player.HasFreeSlot) return PurchaseResult.GarageFull;
@@ -26,7 +30,7 @@ namespace CRS.Core.Economy
 
             player.Spend(price);
             market.Remove(listing);
-            player.AddCar(new OwnedCar(listing.Id, listing.Car, price));
+            player.AddCar(new OwnedCar(listing.Id, listing.Car, price, report));
             return PurchaseResult.Success;
         }
     }

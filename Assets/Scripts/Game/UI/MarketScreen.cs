@@ -11,8 +11,9 @@ namespace CRS.Game.UI
     /// <summary>
     /// Main 2D screen: money, garage, the listing board and buying cars.
     /// Builds its own Canvas on game start, no scene setup needed.
+    /// The listing details overlay lives in MarketScreen.Details.cs.
     /// </summary>
-    public sealed class MarketScreen : MonoBehaviour
+    public sealed partial class MarketScreen : MonoBehaviour
     {
         private enum Tab { Market, Garage }
 
@@ -28,10 +29,12 @@ namespace CRS.Game.UI
         private bool compact;
         private int lastScreenWidth, lastScreenHeight;
 
+        private Transform canvasRoot;
         private Text moneyText, garageText, langLabel, marketTabLabel, garageTabLabel, refreshLabel, toastText;
         private Image marketTabImage, garageTabImage;
         private GameObject refreshButton, toastPanel;
         private RectTransform listContent;
+        private SmoothScrollRect scroll;
         private float toastHideAt;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -50,12 +53,18 @@ namespace CRS.Game.UI
             Ui.LoadFont();
             EnsureEventSystem();
             Build();
+            BuildDetails();
+            toastPanel.transform.SetAsLastSibling();
             Redraw(resetScroll: true);
         }
 
         private void Update()
         {
-            if (Screen.width != lastScreenWidth || Screen.height != lastScreenHeight) Redraw(resetScroll: false);
+            if (Screen.width != lastScreenWidth || Screen.height != lastScreenHeight)
+            {
+                Redraw(resetScroll: false);
+                if (IsDetailsOpen) RedrawDetails(resetScroll: false);
+            }
             if (toastPanel.activeSelf && Time.unscaledTime >= toastHideAt) toastPanel.SetActive(false);
         }
 
@@ -78,6 +87,7 @@ namespace CRS.Game.UI
         {
             var canvasGo = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasGo.transform.SetParent(transform, false);
+            canvasRoot = canvasGo.transform;
             canvasGo.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = canvasGo.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -85,7 +95,7 @@ namespace CRS.Game.UI
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 0.5f;
 
-            var background = Ui.CreateImage("Background", canvasGo.transform, Theme.Background);
+            var background = Ui.CreateImage("Background", canvasRoot, Theme.Background);
             Ui.Stretch(background.rectTransform);
             Ui.Vertical(background.gameObject, 12, new RectOffset(24, 24, 16, 16));
 
@@ -105,32 +115,10 @@ namespace CRS.Game.UI
             Ui.Layout(Ui.CreateRect("Spacer", tabs), flexibleWidth: 1);
             refreshButton = Ui.CreateButton("Refresh", tabs, 22, Theme.Tab, OnRefresh, out refreshLabel).gameObject;
 
-            // Scrollable list
-            var scrollRect = Ui.CreateRect("Scroll", background.transform);
-            Ui.Layout(scrollRect, flexibleHeight: 1);
-            var scroll = scrollRect.gameObject.AddComponent<ScrollRect>();
-            var viewport = Ui.CreateImage("Viewport", scrollRect, new Color(0, 0, 0, 0));
-            Ui.Stretch(viewport.rectTransform);
-            viewport.gameObject.AddComponent<RectMask2D>();
-
-            listContent = Ui.CreateRect("Content", viewport.transform);
-            listContent.anchorMin = new Vector2(0, 1);
-            listContent.anchorMax = new Vector2(1, 1);
-            listContent.pivot = new Vector2(0.5f, 1);
-            listContent.anchoredPosition = Vector2.zero;
-            listContent.sizeDelta = Vector2.zero;
-            Ui.Vertical(listContent.gameObject, 12);
-            listContent.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            scroll.viewport = viewport.rectTransform;
-            scroll.content = listContent;
-            scroll.horizontal = false;
-            scroll.vertical = true;
-            scroll.movementType = ScrollRect.MovementType.Elastic;
-            scroll.scrollSensitivity = 40f;
+            CreateScrollList(background.transform, out scroll, out listContent);
 
             // Toast at the bottom, above everything
-            var toast = Ui.CreateImage("Toast", canvasGo.transform, Theme.Toast);
+            var toast = Ui.CreateImage("Toast", canvasRoot, Theme.Toast);
             toast.raycastTarget = false;
             var toastRect = toast.rectTransform;
             toastRect.anchorMin = new Vector2(0, 0);
@@ -142,6 +130,34 @@ namespace CRS.Game.UI
             Ui.Stretch(toastText.rectTransform, 16, 8, 16, 8);
             toastPanel = toast.gameObject;
             toastPanel.SetActive(false);
+        }
+
+        /// <summary>A vertical list that fills the remaining height of its parent column.</summary>
+        private static void CreateScrollList(Transform parent, out SmoothScrollRect scrollRect, out RectTransform content)
+        {
+            var scrollArea = Ui.CreateRect("Scroll", parent);
+            Ui.Layout(scrollArea, flexibleHeight: 1);
+            scrollRect = scrollArea.gameObject.AddComponent<SmoothScrollRect>();
+            var viewport = Ui.CreateImage("Viewport", scrollArea, new Color(0, 0, 0, 0));
+            Ui.Stretch(viewport.rectTransform);
+            viewport.gameObject.AddComponent<RectMask2D>();
+
+            content = Ui.CreateRect("Content", viewport.transform);
+            content.anchorMin = new Vector2(0, 1);
+            content.anchorMax = new Vector2(1, 1);
+            content.pivot = new Vector2(0.5f, 1);
+            content.anchoredPosition = Vector2.zero;
+            content.sizeDelta = Vector2.zero;
+            Ui.Vertical(content.gameObject, 12);
+            content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            scrollRect.viewport = viewport.rectTransform;
+            scrollRect.content = content;
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Elastic;
+            scrollRect.inertia = true;
+            scrollRect.decelerationRate = 0.1f;
         }
 
         // ---------- drawing ----------
@@ -163,58 +179,58 @@ namespace CRS.Game.UI
             garageTabImage.color = tab == Tab.Garage ? Theme.Accent : Theme.Tab;
             refreshButton.SetActive(tab == Tab.Market);
 
-            ClearList();
+            ClearChildren(listContent);
             if (tab == Tab.Market)
             {
-                if (session.Market.Listings.Count == 0) AddNote(UiText.Get("market.empty", lang));
+                if (session.Market.Listings.Count == 0) AddNote(listContent, UiText.Get("market.empty", lang));
                 foreach (var listing in session.Market.Listings) AddListingCard(listing);
             }
             else
             {
                 if (player.Garage.Count == 0)
                 {
-                    AddNote(UiText.Get("garage.empty", lang));
+                    AddNote(listContent, UiText.Get("garage.empty", lang));
                 }
                 else
                 {
                     foreach (var owned in player.Garage) AddGarageCard(owned);
-                    AddNote(UiText.Get("garage.soon", lang));
+                    AddNote(listContent, UiText.Get("garage.soon", lang));
                 }
             }
 
-            if (resetScroll) listContent.anchoredPosition = Vector2.zero;
+            if (resetScroll) scroll.ScrollToTop();
         }
 
-        private void ClearList()
+        private static void ClearChildren(Transform parent)
         {
-            for (int i = listContent.childCount - 1; i >= 0; i--)
+            for (int i = parent.childCount - 1; i >= 0; i--)
             {
-                var child = listContent.GetChild(i).gameObject;
+                var child = parent.GetChild(i).gameObject;
                 child.SetActive(false);
                 Destroy(child);
             }
         }
 
+        private string ListingDetails(Listing listing) =>
+            $"{MoneyFormat.Number(listing.Car.DisplayedMileage)} {UiText.Get("unit.km", lang)} · " +
+            UiText.Get(UiText.SellerKey(listing.Seller), lang);
+
         private void AddListingCard(Listing listing)
         {
-            var car = listing.Car;
-            var player = session.Player;
-            string details = $"{MoneyFormat.Number(car.DisplayedMileage)} {UiText.Get("unit.km", lang)} · " +
-                             UiText.Get(UiText.SellerKey(listing.Seller), lang);
-            bool canBuy = player.HasFreeSlot && player.Money >= listing.AskingPrice;
-
-            AddCard(listing.Id, car, details, listing.Description(lang),
-                MoneyFormat.Format(listing.AskingPrice),
-                UiText.Get("btn.buy", lang), canBuy ? Theme.Buy : Theme.Disabled, true,
-                () => OnBuy(listing));
+            AddCard(listContent, listing.Id, listing.Car, ListingDetails(listing), listing.Description(lang),
+                MoneyFormat.Format(session.PriceFor(listing)),
+                UiText.Get("btn.inspect", lang), Theme.Accent, true,
+                () => OpenDetails(listing));
         }
 
         private void AddGarageCard(OwnedCar owned)
         {
             string details = $"{MoneyFormat.Number(owned.Car.DisplayedMileage)} {UiText.Get("unit.km", lang)} · " +
                              UiText.Format("garage.bought_for", lang, MoneyFormat.Format(owned.PurchasePrice));
+            if (owned.Report.DiagnosticsDone)
+                details += " · " + UiText.Format("garage.issues", lang, owned.Car.HiddenDefects.Count);
 
-            AddCard(owned.ListingId, owned.Car, details, null,
+            AddCard(listContent, owned.ListingId, owned.Car, details, null,
                 MoneyFormat.Format(owned.PurchasePrice),
                 UiText.Get("btn.sell_soon", lang), Theme.Disabled, false, null);
         }
@@ -223,10 +239,10 @@ namespace CRS.Game.UI
         /// Wide: [photo | info | price + button] in one row.
         /// Compact (phones): [photo | info] on top, [price ... button] below.
         /// </summary>
-        private void AddCard(int seed, Car car, string details, string description,
+        private void AddCard(Transform parent, int seed, Car car, string details, string description,
             string price, string actionLabel, Color actionColor, bool interactable, UnityAction onAction)
         {
-            var card = Ui.CreateImage("Card", listContent, Theme.Card);
+            var card = Ui.CreateImage("Card", parent, Theme.Card);
             Transform row;
             if (compact)
             {
@@ -284,9 +300,9 @@ namespace CRS.Game.UI
             Ui.Layout(button, minWidth: 180, minHeight: 56);
         }
 
-        private void AddNote(string text)
+        private void AddNote(Transform parent, string text)
         {
-            var note = Ui.CreateText("Note", listContent, 24, Theme.Muted, FontStyle.Normal, TextAnchor.MiddleCenter);
+            var note = Ui.CreateText("Note", parent, 24, Theme.Muted, FontStyle.Normal, TextAnchor.MiddleCenter);
             note.text = text;
             Ui.Layout(note, minHeight: 80);
         }
@@ -295,18 +311,21 @@ namespace CRS.Game.UI
 
         private void OnBuy(Listing listing)
         {
-            long price = listing.AskingPrice;
+            long price = session.PriceFor(listing);
             switch (session.Buy(listing))
             {
                 case PurchaseResult.Success:
                     ShowToast(UiText.Format("toast.bought", lang, listing.Car.Title(lang), MoneyFormat.Format(price)));
-                    Redraw(resetScroll: false);
+                    CloseDetails();
                     break;
                 case PurchaseResult.NotEnoughMoney:
                     ShowToast(UiText.Format("toast.no_money", lang, MoneyFormat.Format(price - session.Player.Money)));
                     break;
                 case PurchaseResult.GarageFull:
                     ShowToast(UiText.Get("toast.garage_full", lang));
+                    break;
+                case PurchaseResult.SellerRefused:
+                    ShowToast(UiText.Get("toast.seller_refused", lang));
                     break;
                 default:
                     ShowToast(UiText.Get("toast.unavailable", lang));
@@ -331,13 +350,13 @@ namespace CRS.Game.UI
         {
             lang = lang == Language.Ru ? Language.En : Language.Ru;
             Redraw(resetScroll: false);
+            if (IsDetailsOpen) RedrawDetails(resetScroll: false);
         }
 
         private void ShowToast(string text)
         {
             toastText.text = text;
             toastPanel.SetActive(true);
-            toastPanel.transform.SetAsLastSibling();
             toastHideAt = Time.unscaledTime + ToastSeconds;
         }
 

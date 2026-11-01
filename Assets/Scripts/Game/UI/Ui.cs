@@ -65,10 +65,12 @@ namespace CRS.Game.UI
             layout.childAlignment = TextAnchor.MiddleCenter;
             layout.childControlWidth = true;
             layout.childControlHeight = true;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = true;
+            // Must stay false: force-expand makes the button report itself as flexible,
+            // and parent rows then stretch it over all free space.
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
 
-            label = CreateText("Label", image.transform, fontSize, Theme.Text, FontStyle.Bold, TextAnchor.MiddleCenter);
+            label =CreateText("Label", image.transform, fontSize, Theme.Text, FontStyle.Bold, TextAnchor.MiddleCenter);
             return button;
         }
 

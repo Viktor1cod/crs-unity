@@ -16,5 +16,10 @@ namespace CRS.Game.UI
         public static readonly Color Buy = new Color(0.18f, 0.62f, 0.34f);
         public static readonly Color Disabled = new Color(0.28f, 0.31f, 0.38f);
         public static readonly Color Toast = new Color(0.02f, 0.03f, 0.05f, 0.92f);
+        public static readonly Color Warning = new Color(1f, 0.78f, 0.35f);
+        public static readonly Color Danger = new Color(0.93f, 0.36f, 0.33f);
+
+        /// <summary>Green for good, yellow for worn, red for bad.</summary>
+        public static Color Condition(int value) => value >= 70 ? Money : value >= 40 ? Warning : Danger;
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using CRS.Core.Cars;
+using CRS.Core.Deals;
 
 namespace CRS.Core.Economy
 {
@@ -10,12 +11,15 @@ namespace CRS.Core.Economy
         public readonly int ListingId;
         public readonly Car Car;
         public readonly long PurchasePrice;
+        /// <summary>What the player found out before buying.</summary>
+        public readonly InspectionReport Report;
 
-        public OwnedCar(int listingId, Car car, long purchasePrice)
+        public OwnedCar(int listingId, Car car, long purchasePrice, InspectionReport report = null)
         {
             ListingId = listingId;
             Car = car ?? throw new ArgumentNullException(nameof(car));
             PurchasePrice = purchasePrice;
+            Report = report ?? new InspectionReport();
         }
     }
 }
