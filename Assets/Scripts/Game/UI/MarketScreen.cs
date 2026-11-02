@@ -1,6 +1,7 @@
 using CRS.Core;
 using CRS.Core.Cars;
 using CRS.Core.Economy;
+using CRS.Core.Repairs;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -223,16 +224,21 @@ namespace CRS.Game.UI
                 () => OpenDetails(listing));
         }
 
-        private void AddGarageCard(OwnedCar owned)
+        private string GarageDetails(OwnedCar owned)
         {
             string details = $"{MoneyFormat.Number(owned.Car.DisplayedMileage)} {UiText.Get("unit.km", lang)} · " +
                              UiText.Format("garage.bought_for", lang, MoneyFormat.Format(owned.PurchasePrice));
             if (owned.Report.DiagnosticsDone)
                 details += " · " + UiText.Format("garage.issues", lang, owned.Car.HiddenDefects.Count);
+            return details;
+        }
 
-            AddCard(listContent, owned.ListingId, owned.Car, details, null,
-                MoneyFormat.Format(owned.PurchasePrice),
-                UiText.Get("btn.sell_soon", lang), Theme.Disabled, false, null);
+        private void AddGarageCard(OwnedCar owned)
+        {
+            AddCard(listContent, owned.ListingId, owned.Car, GarageDetails(owned), null,
+                MoneyFormat.Format(Workshop.EstimateNow(owned)),
+                UiText.Get("btn.workshop", lang), Theme.Accent, true,
+                () => OpenWorkshop(owned));
         }
 
         /// <summary>

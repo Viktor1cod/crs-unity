@@ -28,7 +28,7 @@ namespace CRS.Core
             ["market.empty"]      = new[] { "Объявлений нет. Нажмите «Новые объявления».",            "No listings. Tap \"New listings\"." },
             ["garage.empty"]      = new[] { "Гараж пуст. Купите машину на вкладке «Объявления».",     "Your garage is empty. Buy a car on the Listings tab." },
             ["garage.bought_for"] = new[] { "куплена за {0}",                                         "bought for {0}" },
-            ["garage.soon"]       = new[] { "Осмотр, ремонт и продажа появятся в следующих версиях.", "Inspection, repairs and selling are coming next." },
+            ["garage.soon"]       = new[] { "Продажа машин появится в следующей версии.",             "Selling cars is coming next." },
             ["unit.km"]           = new[] { "км",                                                     "km" },
             ["seller.private"]    = new[] { "частник",                                                "private seller" },
             ["seller.reseller"]   = new[] { "перекуп",                                                "reseller" },
@@ -83,6 +83,28 @@ namespace CRS.Core
             ["deal.agreed"]       = new[] { "Договорились на {0}. Можно покупать.",                   "Agreed at {0}. You can buy now." },
             ["deal.refused"]      = new[] { "Продавец больше не хочет с вами разговаривать.",         "The seller won't talk to you anymore." },
             ["deal.no_room"]      = new[] { "Цена уже минимальная, дальше торговаться некуда.",       "The price is as low as it gets." },
+
+            // Workshop
+            ["btn.workshop"]      = new[] { "Ремонт",                                                 "Workshop" },
+            ["section.value"]     = new[] { "Стоимость",                                              "Value" },
+            ["value.now"]         = new[] { "Стоимость сейчас: {0}",                                  "Value now: {0}" },
+            ["value.now_note"]    = new[] { "Без диагностики оценка по внешнему виду: скрытые проблемы не учтены.",
+                                            "Without diagnostics this is a visual estimate: hidden problems are not counted." },
+            ["value.after"]       = new[] { "После ремонта всего за {0}: {1}",                        "After repairing everything for {0}: {1}" },
+            ["value.invested"]    = new[] { "Вложено {0}: покупка {1} и ремонт {2}",                  "Invested {0}: purchase {1}, repairs {2}" },
+            ["section.repair"]    = new[] { "Ремонт узлов",                                           "Repairs" },
+            ["repair.btn"]        = new[] { "Починить за {0}",                                        "Fix for {0}" },
+            ["repair.ok"]         = new[] { "В порядке",                                              "Fine" },
+            ["section.care"]      = new[] { "Уход и проверки",                                        "Detailing and checks" },
+            ["care.wash"]         = new[] { "Мойка: +2% к цене",                                      "Wash: +2% to value" },
+            ["care.polish"]       = new[] { "Полировка: +5% к цене",                                  "Polish: +5% to value" },
+            ["care.btn"]          = new[] { "Сделать за {0}",                                         "Do it for {0}" },
+            ["toast.repaired"]    = new[] { "Отремонтировано: {0} за {1}",                            "Repaired: {0} for {1}" },
+            ["toast.hidden_fixed"] = new[] { "Механик нашёл и устранил скрытую проблему. {0}: всего {1}",
+                                             "The mechanic found and fixed a hidden problem. {0}: total {1}" },
+            ["toast.hidden_found"] = new[] { "Механик нашёл скрытую проблему. {0}: полный ремонт стоит {1}",
+                                             "The mechanic found a hidden problem. {0}: full repair costs {1}" },
+            ["toast.done"]        = new[] { "Готово: {0}",                                            "Done: {0}" },
         };
 
         public static string Get(string key, Language lang)

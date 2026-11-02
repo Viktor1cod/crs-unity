@@ -22,8 +22,9 @@ namespace CRS.Game.UI
         private SmoothScrollRect detailsScroll;
         private Text detailsMoneyText, backLabel;
         private Listing openListing;
+        private OwnedCar openOwned;
 
-        private bool IsDetailsOpen => openListing != null;
+        private bool IsDetailsOpen => openListing != null || openOwned != null;
 
         private void BuildDetails()
         {
@@ -46,6 +47,7 @@ namespace CRS.Game.UI
         private void OpenDetails(Listing listing)
         {
             openListing = listing;
+            openOwned = null;
             detailsPanel.SetActive(true);
             RedrawDetails(resetScroll: true);
         }
@@ -53,12 +55,19 @@ namespace CRS.Game.UI
         private void CloseDetails()
         {
             openListing = null;
+            openOwned = null;
             detailsPanel.SetActive(false);
             Redraw(resetScroll: false);
         }
 
         private void RedrawDetails(bool resetScroll)
         {
+            if (openOwned != null)
+            {
+                RedrawWorkshop(resetScroll);
+                return;
+            }
+
             var listing = openListing;
             if (listing == null) return;
 
