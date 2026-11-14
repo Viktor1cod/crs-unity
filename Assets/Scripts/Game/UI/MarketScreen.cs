@@ -2,6 +2,7 @@ using CRS.Core;
 using CRS.Core.Cars;
 using CRS.Core.Economy;
 using CRS.Core.Repairs;
+using CRS.Core.Selling;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -10,9 +11,10 @@ using UnityEngine.UI;
 namespace CRS.Game.UI
 {
     /// <summary>
-    /// Main 2D screen: money, garage, the listing board and buying cars.
+    /// Main 2D screen: money, day, garage, the listing board and buying cars.
     /// Builds its own Canvas on game start, no scene setup needed.
-    /// The listing details overlay lives in MarketScreen.Details.cs.
+    /// The listing details overlay lives in MarketScreen.Details.cs,
+    /// the garage car screen (repairs and selling) in MarketScreen.Workshop.cs.
     /// </summary>
     public sealed partial class MarketScreen : MonoBehaviour
     {
@@ -31,9 +33,9 @@ namespace CRS.Game.UI
         private int lastScreenWidth, lastScreenHeight;
 
         private Transform canvasRoot;
-        private Text moneyText, garageText, langLabel, marketTabLabel, garageTabLabel, refreshLabel, toastText;
+        private Text moneyText, garageText, dayText, langLabel, marketTabLabel, garageTabLabel, nextDayLabel, toastText;
         private Image marketTabImage, garageTabImage;
-        private GameObject refreshButton, toastPanel;
+        private GameObject toastPanel;
         private RectTransform listContent;
         private SmoothScrollRect scroll;
         private float toastHideAt;
@@ -100,21 +102,22 @@ namespace CRS.Game.UI
             Ui.Stretch(background.rectTransform);
             Ui.Vertical(background.gameObject, 12, new RectOffset(24, 24, 16, 16));
 
-            // Row 1: money, garage counter, language
+            // Row 1: money, day, garage counter, language
             var top = Ui.CreateRect("TopRow", background.transform);
             Ui.Horizontal(top.gameObject, 20);
             moneyText = Ui.CreateText("Money", top, 40, Theme.Money, FontStyle.Bold);
+            dayText = Ui.CreateText("Day", top, 24, Theme.Text);
             garageText = Ui.CreateText("Garage", top, 24, Theme.Muted);
             Ui.Layout(Ui.CreateRect("Spacer", top), flexibleWidth: 1);
             Ui.CreateButton("Language", top, 22, Theme.Tab, ToggleLanguage, out langLabel);
 
-            // Row 2: tabs and refresh
+            // Row 2: tabs and the next day button
             var tabs = Ui.CreateRect("Tabs", background.transform);
             Ui.Horizontal(tabs.gameObject, 12);
             marketTabImage = (Image)Ui.CreateButton("MarketTab", tabs, 26, Theme.Accent, () => SwitchTab(Tab.Market), out marketTabLabel).targetGraphic;
             garageTabImage = (Image)Ui.CreateButton("GarageTab", tabs, 26, Theme.Tab, () => SwitchTab(Tab.Garage), out garageTabLabel).targetGraphic;
             Ui.Layout(Ui.CreateRect("Spacer", tabs), flexibleWidth: 1);
-            refreshButton = Ui.CreateButton("Refresh", tabs, 22, Theme.Tab, OnRefresh, out refreshLabel).gameObject;
+            Ui.CreateButton("NextDay", tabs, 22, Theme.Buy, OnNextDay, out nextDayLabel);
 
             CreateScrollList(background.transform, out scroll, out listContent);
 
@@ -171,14 +174,14 @@ namespace CRS.Game.UI
 
             var player = session.Player;
             moneyText.text = MoneyFormat.Format(player.Money);
+            dayText.text = UiText.Format("top.day", lang, session.Day);
             garageText.text = UiText.Format("top.garage", lang, player.Garage.Count, player.GarageCapacity);
             langLabel.text = UiText.Get("lang.switch", lang);
             marketTabLabel.text = UiText.Get("tab.market", lang);
             garageTabLabel.text = UiText.Get("tab.garage", lang);
-            refreshLabel.text = UiText.Get("btn.refresh", lang);
+            nextDayLabel.text = UiText.Get("btn.next_day", lang);
             marketTabImage.color = tab == Tab.Market ? Theme.Accent : Theme.Tab;
             garageTabImage.color = tab == Tab.Garage ? Theme.Accent : Theme.Tab;
-            refreshButton.SetActive(tab == Tab.Market);
 
             ClearChildren(listContent);
             if (tab == Tab.Market)
@@ -195,7 +198,6 @@ namespace CRS.Game.UI
                 else
                 {
                     foreach (var owned in player.Garage) AddGarageCard(owned);
-                    AddNote(listContent, UiText.Get("garage.soon", lang));
                 }
             }
 
@@ -212,9 +214,9 @@ namespace CRS.Game.UI
             }
         }
 
+        /// <summary>The seller type is not shown: the player reads it from the ad text.</summary>
         private string ListingDetails(Listing listing) =>
-            $"{MoneyFormat.Number(listing.Car.DisplayedMileage)} {UiText.Get("unit.km", lang)} · " +
-            UiText.Get(UiText.SellerKey(listing.Seller), lang);
+            $"{MoneyFormat.Number(listing.Car.DisplayedMileage)} {UiText.Get("unit.km", lang)}";
 
         private void AddListingCard(Listing listing)
         {
@@ -230,14 +232,23 @@ namespace CRS.Game.UI
                              UiText.Format("garage.bought_for", lang, MoneyFormat.Format(owned.PurchasePrice));
             if (owned.Report.DiagnosticsDone)
                 details += " · " + UiText.Format("garage.issues", lang, owned.Car.HiddenDefects.Count);
+
+            var sale = session.SaleFor(owned);
+            if (sale != null)
+            {
+                details += "\n" + UiText.Format("sale.on_sale", lang, MoneyFormat.Format(sale.AskingPrice));
+                if (sale.Offers.Count > 0) details += " · " + UiText.Format("sale.offers", lang, sale.Offers.Count);
+            }
             return details;
         }
 
         private void AddGarageCard(OwnedCar owned)
         {
+            var sale = session.SaleFor(owned);
+            bool hasOffers = sale != null && sale.Offers.Count > 0;
             AddCard(listContent, owned.ListingId, owned.Car, GarageDetails(owned), null,
-                MoneyFormat.Format(Workshop.EstimateNow(owned)),
-                UiText.Get("btn.workshop", lang), Theme.Accent, true,
+                MoneyFormat.Format(sale != null ? sale.AskingPrice : Workshop.EstimateNow(owned)),
+                UiText.Get("btn.workshop", lang), hasOffers ? Theme.Buy : Theme.Accent, true,
                 () => OpenWorkshop(owned));
         }
 
@@ -339,10 +350,14 @@ namespace CRS.Game.UI
             }
         }
 
-        private void OnRefresh()
+        private void OnNextDay()
         {
-            session.RefreshMarket();
-            ShowToast(UiText.Get("toast.refreshed", lang));
+            DayReport report = session.NextDay();
+            ShowToast(UiText.Format("toast.next_day", lang, report.Day, MoneyFormat.Format(report.RentPaid), report.NewBuyers));
+
+            // Yesterday's listings are gone, so a listing screen cannot stay open.
+            if (openListing != null) CloseDetails();
+            else if (IsDetailsOpen) RedrawDetails(resetScroll: false);
             Redraw(resetScroll: true);
         }
 

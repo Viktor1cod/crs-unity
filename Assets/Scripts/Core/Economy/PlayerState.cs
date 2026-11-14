@@ -34,11 +34,25 @@ namespace CRS.Core.Economy
             Money += amount;
         }
 
+        /// <summary>Pays as much of the amount as the player has. Returns what was actually paid.</summary>
+        public long PayUpTo(long amount)
+        {
+            if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
+            long paid = Math.Min(amount, Money);
+            Money -= paid;
+            return paid;
+        }
+
         public void AddCar(OwnedCar car)
         {
             if (car == null) throw new ArgumentNullException(nameof(car));
             if (!HasFreeSlot) throw new InvalidOperationException("Garage is full");
             garage.Add(car);
         }
+
+        /// <summary>Takes a sold car out of the garage. False if the car was not there.</summary>
+        public bool RemoveCar(OwnedCar car) => garage.Remove(car);
+
+        public bool Owns(OwnedCar car) => car != null && garage.Contains(car);
     }
 }

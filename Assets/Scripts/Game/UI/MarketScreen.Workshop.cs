@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using CRS.Core;
 using CRS.Core.Cars;
 using CRS.Core.Economy;
 using CRS.Core.Repairs;
+using CRS.Core.Selling;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -9,7 +11,7 @@ using UnityEngine.UI;
 namespace CRS.Game.UI
 {
     /// <summary>
-    /// Garage workshop overlay: value of the car, repairs, washing, polishing and diagnostics.
+    /// Garage car overlay: selling, value of the car, repairs, washing, polishing and diagnostics.
     /// Shares the details panel with the listing screen.
     /// </summary>
     public sealed partial class MarketScreen
@@ -33,9 +35,20 @@ namespace CRS.Game.UI
             ClearChildren(detailsContent);
 
             long valueNow = Workshop.EstimateNow(owned);
-            AddCard(detailsContent, owned.ListingId, car, GarageDetails(owned), null,
-                MoneyFormat.Format(valueNow),
-                UiText.Get("btn.sell_soon", lang), Theme.Disabled, false, null);
+            var sale = session.SaleFor(owned);
+            long marketPrice = SalePricing.PriceAt(car, 0);
+            if (sale == null)
+                AddCard(detailsContent, owned.ListingId, car, GarageDetails(owned), null,
+                    MoneyFormat.Format(valueNow),
+                    UiText.Format("sale.list_btn", lang, MoneyFormat.Format(marketPrice)), Theme.Buy, true,
+                    () => OnList(owned, marketPrice));
+            else
+                AddCard(detailsContent, owned.ListingId, car, GarageDetails(owned), null,
+                    MoneyFormat.Format(sale.AskingPrice),
+                    UiText.Get("sale.unlist", lang), Theme.Tab, true,
+                    () => OnUnlist(owned));
+
+            AddSaleSection(owned, sale);
 
             // Value
             AddSection(UiText.Get("section.value", lang));
@@ -88,6 +101,163 @@ namespace CRS.Game.UI
 
             if (resetScroll) detailsScroll.ScrollToTop();
         }
+
+        // ---------- selling ----------
+
+        private void AddSaleSection(OwnedCar owned, SaleListing sale)
+        {
+            AddSection(UiText.Get("section.sale", lang));
+
+            if (sale == null)
+            {
+                AddLine(UiText.Format("sale.market", lang, MoneyFormat.Format(SalePricing.MarketValue(owned.Car))), Theme.Money);
+                AddLine(UiText.Get("sale.hint", lang), Theme.Muted);
+                AddPriceButtons(owned);
+                return;
+            }
+
+            AddLine(UiText.Format("sale.listed", lang, MoneyFormat.Format(sale.AskingPrice)), Theme.Text);
+            if (sale.Offers.Count == 0)
+            {
+                AddLine(UiText.Get("sale.no_offers", lang), Theme.Muted);
+                return;
+            }
+
+            // Copy: buttons below change the list while it is drawn again.
+            foreach (var offer in new List<BuyerOffer>(sale.Offers)) AddBuyerCard(owned, sale, offer);
+            AddLine(UiText.Get("sale.offer_note", lang), Theme.Muted);
+        }
+
+        /// <summary>Quick prices around the market value, like the haggling buttons.</summary>
+        private void AddPriceButtons(OwnedCar owned)
+        {
+            var prices = new List<long>();
+            foreach (int step in SalePricing.PriceSteps)
+            {
+                long price = SalePricing.PriceAt(owned.Car, step);
+                if (!prices.Contains(price)) prices.Add(price);
+            }
+
+            // Phones: two rows of three buttons, so the labels stay readable.
+            int perRow = compact ? 3 : prices.Count;
+            for (int start = 0; start < prices.Count; start += perRow)
+            {
+                var row = Ui.CreateRect("Prices", detailsContent);
+                var layout = Ui.Horizontal(row.gameObject, 10);
+                layout.childForceExpandWidth = true;
+                for (int i = start; i < prices.Count && i < start + perRow; i++)
+                {
+                    long price = prices[i];
+                    var button = Ui.CreateButton("Price", row, 22, Theme.Tab, () => OnList(owned, price), out var label);
+                    label.text = MoneyFormat.Format(price);
+                    Ui.Layout(button, minWidth: 100, minHeight: 56);
+                }
+            }
+        }
+
+        /// <summary>One buyer: what was said, then sell / ask for more / decline.</summary>
+        private void AddBuyerCard(OwnedCar owned, SaleListing sale, BuyerOffer offer)
+        {
+            var card = Ui.CreateImage("Buyer", detailsContent, Theme.Card);
+            Ui.Vertical(card.gameObject, 8, Ui.Pad(16));
+
+            string opening = UiText.Format(offer.PhraseKey, lang, MoneyFormat.Format(offer.OpeningPrice));
+            Ui.CreateText("Opening", card.transform, 22, offer.FoundProblems ? Theme.Warning : Theme.Text,
+                FontStyle.Normal, TextAnchor.UpperLeft).text = UiText.Format("sale.buyer", lang, opening);
+
+            foreach (var turn in offer.Turns)
+            {
+                Ui.CreateText("You", card.transform, 22, Theme.Muted, FontStyle.Normal, TextAnchor.UpperLeft).text =
+                    UiText.Format("sale.you", lang, MoneyFormat.Format(turn.Demand));
+                string reply = UiText.Format(turn.PhraseKey, lang, MoneyFormat.Format(turn.Price));
+                Ui.CreateText("Reply", card.transform, 22,
+                    turn.Reaction == BuyerReaction.Agreed ? Theme.Money : Theme.Text,
+                    FontStyle.Normal, TextAnchor.UpperLeft).text = UiText.Format("sale.buyer", lang, reply);
+            }
+
+            // Sell and decline
+            var main = Ui.CreateRect("Main", card.transform);
+            Ui.Horizontal(main.gameObject, 10);
+            var sell = Ui.CreateButton("Sell", main, 22, Theme.Buy, () => OnSell(owned, offer), out var sellLabel);
+            sellLabel.text = UiText.Format("sale.sell_btn", lang, MoneyFormat.Format(offer.Price));
+            Ui.Layout(sell, minWidth: 200, preferredWidth: 0, flexibleWidth: 1, minHeight: 56);
+            var decline = Ui.CreateButton("Decline", main, 22, Theme.Tab, () => OnDecline(owned, offer), out var declineLabel);
+            declineLabel.text = UiText.Get("sale.decline", lang);
+            Ui.Layout(decline, minWidth: 140, minHeight: 56);
+
+            // Ask for more: +5%, +10%, +15% of the offer, never above the asking price
+            var asks = new List<long>();
+            foreach (int step in new[] { 5, 10, 15 })
+            {
+                double raw = offer.Price * (1 + step / 100.0);
+                long ask = PriceMath.RoundToMarket((long)System.Math.Round(raw), CarValuation.MarketStep(raw));
+                if (ask > sale.AskingPrice) ask = sale.AskingPrice;
+                if (ask > offer.Price && !asks.Contains(ask)) asks.Add(ask);
+            }
+            if (asks.Count == 0) return;
+
+            var row = Ui.CreateRect("Asks", card.transform);
+            var layout = Ui.Horizontal(row.gameObject, 10);
+            layout.childForceExpandWidth = true;
+            foreach (long amount in asks)
+            {
+                long ask = amount;
+                var button = Ui.CreateButton("Ask", row, 20, Theme.Accent, () => OnAsk(owned, offer, ask), out var label);
+                label.text = UiText.Format("sale.ask_btn", lang, MoneyFormat.Format(ask));
+                Ui.Layout(button, minWidth: 100, minHeight: 52);
+            }
+        }
+
+        private void OnList(OwnedCar owned, long price)
+        {
+            if (session.ListForSale(owned, price) == ListResult.Success)
+                ShowToast(UiText.Format("toast.listed", lang, MoneyFormat.Format(price)));
+            Redraw(resetScroll: false);
+            RedrawDetails(resetScroll: false);
+        }
+
+        private void OnUnlist(OwnedCar owned)
+        {
+            if (session.Unlist(owned)) ShowToast(UiText.Get("toast.unlisted", lang));
+            Redraw(resetScroll: false);
+            RedrawDetails(resetScroll: false);
+        }
+
+        private void OnAsk(OwnedCar owned, BuyerOffer offer, long amount)
+        {
+            var sale = session.SaleFor(owned);
+            if (sale == null || !sale.Contains(offer) || amount <= offer.Price) return;
+
+            var turn = session.Counter(owned, offer, amount);
+            if (turn.Reaction == BuyerReaction.Left)
+                ShowToast(UiText.Format("sale.buyer", lang, UiText.Format(turn.PhraseKey, lang, MoneyFormat.Format(turn.Price))));
+            Redraw(resetScroll: false);
+            RedrawDetails(resetScroll: false);
+        }
+
+        private void OnDecline(OwnedCar owned, BuyerOffer offer)
+        {
+            if (session.Decline(owned, offer)) ShowToast(UiText.Get("toast.buyer_left", lang));
+            Redraw(resetScroll: false);
+            RedrawDetails(resetScroll: false);
+        }
+
+        private void OnSell(OwnedCar owned, BuyerOffer offer)
+        {
+            var record = session.Sell(owned, offer);
+            if (record == null)
+            {
+                RedrawDetails(resetScroll: false);
+                return;
+            }
+
+            ShowToast(UiText.Format("toast.sold", lang, record.Car.Title(lang),
+                MoneyFormat.Format(record.SalePrice), MoneyFormat.Format(record.Profit)));
+            // The car is gone: back to the garage list.
+            CloseDetails();
+        }
+
+        // ---------- repairs ----------
 
         private void AddRepairRow(string name, int value, string buttonLabel, bool canRepair, bool affordable,
             UnityAction onClick)

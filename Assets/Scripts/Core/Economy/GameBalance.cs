@@ -9,5 +9,7 @@ namespace CRS.Core.Economy
         public const int ListingsPerRefresh = 8;
         /// <summary>The board always has at least this many cars the player can afford.</summary>
         public const int MinAffordableListings = 2;
+        /// <summary>Garage rent charged every new day, so waiting for a better board is not free.</summary>
+        public const long DailyGarageRent = 30;
     }
 }

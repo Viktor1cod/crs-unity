@@ -2,24 +2,37 @@ using System;
 using System.Collections.Generic;
 using CRS.Core.Cars;
 using CRS.Core.Deals;
+using CRS.Core.Selling;
 
 namespace CRS.Core.Economy
 {
-    /// <summary>One playthrough: the player, the market, inspections and haggling.</summary>
+    /// <summary>One playthrough: the player, the market, inspections, haggling, selling and days.</summary>
     public sealed class GameSession
     {
         private readonly int seed;
         private readonly Dictionary<int, InspectionReport> reports = new Dictionary<int, InspectionReport>();
         private readonly Dictionary<int, Negotiation> negotiations = new Dictionary<int, Negotiation>();
 
+        private readonly List<SaleListing> sales = new List<SaleListing>();
+        private readonly List<SaleRecord> history = new List<SaleRecord>();
+        private readonly BuyerGenerator buyers;
+
         public readonly PlayerState Player;
         public readonly Marketplace Market;
+
+        /// <summary>Game day, starting from 1.</summary>
+        public int Day { get; private set; } = 1;
+        /// <summary>Cars the player has put on sale.</summary>
+        public IReadOnlyList<SaleListing> Sales => sales;
+        /// <summary>Finished sales, oldest first.</summary>
+        public IReadOnlyList<SaleRecord> History => history;
 
         public GameSession(int seed)
         {
             this.seed = seed;
             Player = new PlayerState(GameBalance.StartMoney, GameBalance.StartGarageCapacity);
             Market = new Marketplace(seed, GameBalance.ListingsPerRefresh, GameBalance.MinAffordableListings, Player.Money);
+            buyers = new BuyerGenerator(unchecked(seed * 17 + 3));
         }
 
         // ---------- inspection ----------
@@ -98,6 +111,88 @@ namespace CRS.Core.Economy
             Market.Refresh(Player.Money);
             reports.Clear();
             negotiations.Clear();
+        }
+
+        // ---------- selling ----------
+
+        /// <summary>The player's ad for this car, or null if it is not on sale.</summary>
+        public SaleListing SaleFor(OwnedCar owned)
+        {
+            foreach (var sale in sales)
+                if (ReferenceEquals(sale.Owned, owned)) return sale;
+            return null;
+        }
+
+        /// <summary>Puts a garage car on sale. Buyers come with the next day.</summary>
+        public ListResult ListForSale(OwnedCar owned, long askingPrice)
+        {
+            if (!Player.Owns(owned)) return ListResult.NotOwned;
+            if (SaleFor(owned) != null) return ListResult.AlreadyListed;
+            if (askingPrice <= 0) return ListResult.InvalidPrice;
+            sales.Add(new SaleListing(owned, askingPrice, Day));
+            return ListResult.Success;
+        }
+
+        /// <summary>Takes the ad down. Today's buyers leave.</summary>
+        public bool Unlist(OwnedCar owned)
+        {
+            var sale = SaleFor(owned);
+            return sale != null && sales.Remove(sale);
+        }
+
+        /// <summary>The player asks a buyer for more. A buyer who leaves is removed from the ad.</summary>
+        public BuyerTurn Counter(OwnedCar owned, BuyerOffer offer, long demand)
+        {
+            var sale = SaleFor(owned);
+            if (sale == null || !sale.Contains(offer)) throw new InvalidOperationException("No such offer");
+            var turn = offer.Counter(demand);
+            if (offer.HasLeft) sale.RemoveOffer(offer);
+            return turn;
+        }
+
+        public bool Decline(OwnedCar owned, BuyerOffer offer)
+        {
+            var sale = SaleFor(owned);
+            return sale != null && sale.RemoveOffer(offer);
+        }
+
+        /// <summary>Sells the car at the buyer's current offer. Null if the offer is not valid anymore.</summary>
+        public SaleRecord Sell(OwnedCar owned, BuyerOffer offer)
+        {
+            var sale = SaleFor(owned);
+            if (sale == null || offer == null || offer.HasLeft || !sale.Contains(offer)) return null;
+            if (!Player.RemoveCar(owned)) return null;
+
+            Player.Earn(offer.Price);
+            sales.Remove(sale);
+            var record = new SaleRecord(owned, Day, offer.Price, offer.Type);
+            history.Add(record);
+            return record;
+        }
+
+        // ---------- days ----------
+
+        /// <summary>
+        /// A new day: garage rent is charged, the board gets new listings,
+        /// yesterday's buyers are gone and new ones come for the cars on sale.
+        /// </summary>
+        public DayReport NextDay()
+        {
+            Day++;
+            long rent = Player.PayUpTo(GameBalance.DailyGarageRent);
+            RefreshMarket();
+
+            int newBuyers = 0;
+            foreach (var sale in sales)
+            {
+                sale.ClearOffers();
+                foreach (var buyer in buyers.BuyersForDay(sale.Owned.Car, sale.AskingPrice))
+                {
+                    sale.AddOffer(buyer);
+                    newBuyers++;
+                }
+            }
+            return new DayReport(Day, rent, newBuyers);
         }
     }
 }
