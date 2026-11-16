@@ -72,14 +72,22 @@ namespace CRS.Core.Selling
         public long Profit => PriceMath.Profit(PurchasePrice, Invested, SalePrice);
 
         public SaleRecord(OwnedCar owned, int day, long salePrice, BuyerType buyer)
+            : this(owned.Car, day, owned.PurchasePrice, owned.Invested, salePrice, buyer,
+                owned.Car.IsOdometerRolledBack || owned.Car.HiddenDefects.Count > 0)
         {
-            Car = owned.Car;
+        }
+
+        /// <summary>A deal loaded from a save.</summary>
+        public SaleRecord(Car car, int day, long purchasePrice, long invested, long salePrice, BuyerType buyer,
+            bool hadHiddenProblems)
+        {
+            Car = car ?? throw new ArgumentNullException(nameof(car));
             Day = day;
-            PurchasePrice = owned.PurchasePrice;
-            Invested = owned.Invested;
+            PurchasePrice = purchasePrice;
+            Invested = invested;
             SalePrice = salePrice;
             Buyer = buyer;
-            HadHiddenProblems = owned.Car.IsOdometerRolledBack || owned.Car.HiddenDefects.Count > 0;
+            HadHiddenProblems = hadHiddenProblems;
         }
     }
 

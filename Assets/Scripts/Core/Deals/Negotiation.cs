@@ -94,6 +94,26 @@ namespace CRS.Core.Deals
             baseReservation = RoundPrice(listing.AskingPrice * Range(minShare, maxShare));
         }
 
+        /// <summary>A negotiation loaded from a save, continued from where it stopped.</summary>
+        public Negotiation(Listing listing, int seed, long currentPrice, int patienceLeft, bool hasDeal,
+            bool sellerLeft, double stubbornness, long baseReservation, IEnumerable<NegotiationTurn> turns)
+        {
+            Listing = listing ?? throw new ArgumentNullException(nameof(listing));
+            rng = new Random(seed);
+            CurrentPrice = currentPrice;
+            PatienceLeft = patienceLeft;
+            HasDeal = hasDeal;
+            SellerLeft = sellerLeft;
+            this.stubbornness = stubbornness;
+            this.baseReservation = baseReservation;
+            if (turns != null) this.turns.AddRange(turns);
+        }
+
+        /// <summary>How hard the seller holds the price, 0..1. Saved with the game.</summary>
+        public double Stubbornness => stubbornness;
+        /// <summary>The lowest price before any inspection leverage. Saved with the game.</summary>
+        public long BaseReservation => baseReservation;
+
         /// <summary>Discount argument from what the inspection revealed, in bucks.</summary>
         public long Leverage(InspectionReport report)
         {

@@ -7,7 +7,7 @@ using CRS.Core.Selling;
 namespace CRS.Core.Economy
 {
     /// <summary>One playthrough: the player, the market, inspections, haggling, selling and days.</summary>
-    public sealed class GameSession
+    public sealed partial class GameSession
     {
         private readonly int seed;
         private readonly Dictionary<int, InspectionReport> reports = new Dictionary<int, InspectionReport>();
@@ -33,6 +33,16 @@ namespace CRS.Core.Economy
             Player = new PlayerState(GameBalance.StartMoney, GameBalance.StartGarageCapacity);
             Market = new Marketplace(seed, GameBalance.ListingsPerRefresh, GameBalance.MinAffordableListings, Player.Money);
             buyers = new BuyerGenerator(unchecked(seed * 17 + 3));
+        }
+
+        /// <summary>A session rebuilt from a save, see GameSession.Saves.cs.</summary>
+        private GameSession(int seed, int day, PlayerState player, Marketplace market, int nextBuyerId)
+        {
+            this.seed = seed;
+            Day = day;
+            Player = player;
+            Market = market;
+            buyers = new BuyerGenerator(unchecked(seed * 17 + 3 + day * 101)) { NextId = nextBuyerId };
         }
 
         // ---------- inspection ----------

@@ -3,6 +3,7 @@ using CRS.Core.Cars;
 using CRS.Core.Economy;
 using CRS.Core.Repairs;
 using CRS.Core.Selling;
+using CRS.Game;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -25,6 +26,7 @@ namespace CRS.Game.UI
         /// <summary>Below this logical width cards switch to a two-row phone layout.</summary>
         private const float CompactWidth = 1000f;
         private const float ToastSeconds = 2.5f;
+        private const float RestartConfirmSeconds = 4f;
 
         private GameSession session;
         private Language lang;
@@ -39,6 +41,7 @@ namespace CRS.Game.UI
         private RectTransform listContent;
         private SmoothScrollRect scroll;
         private float toastHideAt;
+        private float restartConfirmUntil;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -52,7 +55,7 @@ namespace CRS.Game.UI
         private void Awake()
         {
             lang = Application.systemLanguage == SystemLanguage.Russian ? Language.Ru : Language.En;
-            session = new GameSession(System.Environment.TickCount);
+            session = SaveStorage.Load() ?? new GameSession(System.Environment.TickCount);
             Ui.LoadFont();
             EnsureEventSystem();
             Build();
@@ -69,6 +72,11 @@ namespace CRS.Game.UI
                 if (IsDetailsOpen) RedrawDetails(resetScroll: false);
             }
             if (toastPanel.activeSelf && Time.unscaledTime >= toastHideAt) toastPanel.SetActive(false);
+            if (restartConfirmUntil > 0 && Time.unscaledTime >= restartConfirmUntil)
+            {
+                restartConfirmUntil = 0;
+                if (tab == Tab.Garage) Redraw(resetScroll: false);
+            }
         }
 
         // ---------- construction ----------
@@ -199,6 +207,7 @@ namespace CRS.Game.UI
                 {
                     foreach (var owned in player.Garage) AddGarageCard(owned);
                 }
+                AddRestartButton();
             }
 
             if (resetScroll) scroll.ScrollToTop();
@@ -324,7 +333,38 @@ namespace CRS.Game.UI
             Ui.Layout(note, minHeight: 80);
         }
 
+        /// <summary>Starting over is at the bottom of the garage and needs a second tap.</summary>
+        private void AddRestartButton()
+        {
+            var row = Ui.CreateRect("Restart", listContent);
+            Ui.Horizontal(row.gameObject, 0, new RectOffset(0, 0, 24, 0), TextAnchor.MiddleCenter);
+            bool confirming = restartConfirmUntil > 0;
+            var button = Ui.CreateButton("Button", row, 20, confirming ? Theme.Danger : Theme.Tab, OnRestart, out var label);
+            label.text = UiText.Get(confirming ? "btn.restart_confirm" : "btn.restart", lang);
+            Ui.Layout(button, minHeight: 48);
+        }
+
         // ---------- actions ----------
+
+        /// <summary>Progress is saved right after every action of the player.</summary>
+        private void SaveGame() => SaveStorage.Save(session);
+
+        private void OnRestart()
+        {
+            if (restartConfirmUntil <= 0)
+            {
+                restartConfirmUntil = Time.unscaledTime + RestartConfirmSeconds;
+                Redraw(resetScroll: false);
+                return;
+            }
+
+            restartConfirmUntil = 0;
+            session = new GameSession(System.Environment.TickCount);
+            SaveGame();
+            tab = Tab.Market;
+            ShowToast(UiText.Get("toast.restarted", lang));
+            Redraw(resetScroll: true);
+        }
 
         private void OnBuy(Listing listing)
         {
@@ -332,6 +372,7 @@ namespace CRS.Game.UI
             switch (session.Buy(listing))
             {
                 case PurchaseResult.Success:
+                    SaveGame();
                     ShowToast(UiText.Format("toast.bought", lang, listing.Car.Title(lang), MoneyFormat.Format(price)));
                     CloseDetails();
                     break;
@@ -353,6 +394,7 @@ namespace CRS.Game.UI
         private void OnNextDay()
         {
             DayReport report = session.NextDay();
+            SaveGame();
             ShowToast(UiText.Format("toast.next_day", lang, report.Day, MoneyFormat.Format(report.RentPaid), report.NewBuyers));
 
             // Yesterday's listings are gone, so a listing screen cannot stay open.

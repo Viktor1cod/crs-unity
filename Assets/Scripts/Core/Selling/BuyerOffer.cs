@@ -89,6 +89,20 @@ namespace CRS.Core.Selling
             PhraseKey = phraseKey;
         }
 
+        /// <summary>How hard the buyer holds the price, 0..1. Saved with the game.</summary>
+        public double Stubbornness => stubbornness;
+
+        /// <summary>A buyer loaded from a save, with the haggling done so far.</summary>
+        public static BuyerOffer Restore(int id, BuyerType type, long openingPrice, long maxPrice, double stubbornness,
+            bool foundProblems, string phraseKey, long price, int patienceLeft, IEnumerable<BuyerTurn> turns)
+        {
+            var offer = new BuyerOffer(id, type, openingPrice, maxPrice, Math.Max(1, patienceLeft), stubbornness,
+                foundProblems, phraseKey);
+            offer.Price = Math.Max(openingPrice, Math.Min(maxPrice, price));
+            if (turns != null) offer.turns.AddRange(turns);
+            return offer;
+        }
+
         /// <summary>The player asks for more than the buyer offers.</summary>
         public BuyerTurn Counter(long demand)
         {

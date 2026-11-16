@@ -22,6 +22,13 @@ namespace CRS.Core.Selling
             rng = new Random(seed);
         }
 
+        /// <summary>Id the next buyer will get. Saved so ids stay unique after loading.</summary>
+        public int NextId
+        {
+            get => nextId;
+            set => nextId = Math.Max(1, value);
+        }
+
         /// <summary>Chance (0..1) that each of the day's possible buyers shows up.</summary>
         public static double Interest(Car car, long askingPrice)
         {

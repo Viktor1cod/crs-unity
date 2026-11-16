@@ -212,6 +212,7 @@ namespace CRS.Game.UI
         {
             if (session.ListForSale(owned, price) == ListResult.Success)
                 ShowToast(UiText.Format("toast.listed", lang, MoneyFormat.Format(price)));
+            SaveGame();
             Redraw(resetScroll: false);
             RedrawDetails(resetScroll: false);
         }
@@ -219,6 +220,7 @@ namespace CRS.Game.UI
         private void OnUnlist(OwnedCar owned)
         {
             if (session.Unlist(owned)) ShowToast(UiText.Get("toast.unlisted", lang));
+            SaveGame();
             Redraw(resetScroll: false);
             RedrawDetails(resetScroll: false);
         }
@@ -231,6 +233,7 @@ namespace CRS.Game.UI
             var turn = session.Counter(owned, offer, amount);
             if (turn.Reaction == BuyerReaction.Left)
                 ShowToast(UiText.Format("sale.buyer", lang, UiText.Format(turn.PhraseKey, lang, MoneyFormat.Format(turn.Price))));
+            SaveGame();
             Redraw(resetScroll: false);
             RedrawDetails(resetScroll: false);
         }
@@ -238,6 +241,7 @@ namespace CRS.Game.UI
         private void OnDecline(OwnedCar owned, BuyerOffer offer)
         {
             if (session.Decline(owned, offer)) ShowToast(UiText.Get("toast.buyer_left", lang));
+            SaveGame();
             Redraw(resetScroll: false);
             RedrawDetails(resetScroll: false);
         }
@@ -251,6 +255,7 @@ namespace CRS.Game.UI
                 return;
             }
 
+            SaveGame();
             ShowToast(UiText.Format("toast.sold", lang, record.Car.Title(lang),
                 MoneyFormat.Format(record.SalePrice), MoneyFormat.Format(record.Profit)));
             // The car is gone: back to the garage list.
@@ -315,6 +320,7 @@ namespace CRS.Game.UI
                     ShowToast(UiText.Format("toast.no_money", lang, MoneyFormat.Format(quote - player.Money)));
                     break;
             }
+            SaveGame();
             Redraw(resetScroll: false);
             RedrawDetails(resetScroll: false);
         }
@@ -330,6 +336,7 @@ namespace CRS.Game.UI
                     ShowToast(UiText.Format("toast.no_money", lang, MoneyFormat.Format(price - session.Player.Money)));
                     break;
             }
+            SaveGame();
             Redraw(resetScroll: false);
             RedrawDetails(resetScroll: false);
         }

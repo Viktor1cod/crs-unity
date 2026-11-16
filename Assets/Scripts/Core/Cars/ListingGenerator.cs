@@ -32,6 +32,13 @@ namespace CRS.Core.Cars
             this.gameYear = gameYear;
         }
 
+        /// <summary>Id the next listing will get. Saved so ids stay unique after loading.</summary>
+        public int NextId
+        {
+            get => nextId;
+            set => nextId = Math.Max(1, value);
+        }
+
         public IReadOnlyList<Listing> GenerateMany(int count)
         {
             var list = new List<Listing>(count);

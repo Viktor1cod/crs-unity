@@ -20,14 +20,32 @@ namespace CRS.Core.Economy
         public IReadOnlyList<Listing> Listings => listings;
 
         public Marketplace(int seed, int size, int minAffordable, long budget)
+            : this(seed, size, minAffordable)
+        {
+            Refresh(budget);
+        }
+
+        private Marketplace(int seed, int size, int minAffordable)
         {
             if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
             generator = new ListingGenerator(seed);
             rng = new Random(unchecked(seed * 31 + 7));
             Size = size;
             MinAffordable = Math.Max(0, Math.Min(minAffordable, size));
-            Refresh(budget);
         }
+
+        /// <summary>A board loaded from a save: the same listings instead of fresh ones.</summary>
+        public static Marketplace Restore(int seed, int size, int minAffordable,
+            IEnumerable<Listing> savedListings, int nextListingId)
+        {
+            var market = new Marketplace(seed, size, minAffordable);
+            market.listings.AddRange(savedListings);
+            market.generator.NextId = nextListingId;
+            return market;
+        }
+
+        /// <summary>Id the next generated listing will get.</summary>
+        public int NextListingId => generator.NextId;
 
         /// <summary>Replaces all listings with new ones.</summary>
         public void Refresh(long budget)

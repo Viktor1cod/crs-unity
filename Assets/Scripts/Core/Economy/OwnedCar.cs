@@ -41,6 +41,9 @@ namespace CRS.Core.Economy
 
         public void MarkDefectsKnown(CarComponent component) => componentsWithKnownDefects.Add(component);
 
+        /// <summary>Components whose defects the mechanic has found. Saved with the game.</summary>
+        public IEnumerable<CarComponent> ComponentsWithKnownDefects => componentsWithKnownDefects;
+
         /// <summary>Repair cost of defects the player knows about.</summary>
         public long KnownDefectCost()
         {

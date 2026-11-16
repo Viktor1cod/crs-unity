@@ -100,6 +100,11 @@ namespace CRS.Core
             ["toast.hidden_found"] = new[] { "Механик нашёл скрытую проблему. {0}: полный ремонт стоит {1}",
                                              "The mechanic found a hidden problem. {0}: full repair costs {1}" },
             ["toast.done"]        = new[] { "Готово: {0}",                                            "Done: {0}" },
+            // Saves
+            ["btn.restart"]       = new[] { "Начать новую игру",                                      "Start a new game" },
+            ["btn.restart_confirm"] = new[] { "Стереть прогресс? Нажмите ещё раз",                    "Erase progress? Tap again" },
+            ["toast.restarted"]   = new[] { "Новая игра",                                             "New game" },
+
             // Days
             ["top.day"]           = new[] { "День {0}",                                               "Day {0}" },
             ["btn.next_day"]      = new[] { "Следующий день",                                         "Next day" },

@@ -290,6 +290,7 @@ namespace CRS.Game.UI
                     ShowToast(UiText.Get("toast.unavailable", lang));
                     break;
             }
+            SaveGame();
             Redraw(resetScroll: false);
             RedrawDetails(resetScroll: false);
         }
@@ -299,6 +300,7 @@ namespace CRS.Game.UI
             var deal = session.NegotiationFor(listing);
             if (deal.IsClosed) return;
             session.Offer(listing, amount);
+            SaveGame();
             RedrawDetails(resetScroll: false);
         }
     }
