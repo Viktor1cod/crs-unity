@@ -16,8 +16,18 @@ namespace CRS.Game.UI
     /// </summary>
     public sealed partial class MarketScreen
     {
+        /// <summary>The player chose to keep the rolled-back odometer reading in the ad.</summary>
+        private bool hideRealMileage;
+
+        /// <summary>The player knows the odometer was rolled back and can choose what the ad says.</summary>
+        private static bool CanStateRealMileage(OwnedCar owned) =>
+            owned.Report.HistoryChecked && owned.Car.IsOdometerRolledBack;
+
+        private bool StatesRealMileage(OwnedCar owned) => CanStateRealMileage(owned) && !hideRealMileage;
+
         private void OpenWorkshop(OwnedCar owned)
         {
+            hideRealMileage = false;
             openOwned = owned;
             openListing = null;
             detailsPanel.SetActive(true);
@@ -36,7 +46,7 @@ namespace CRS.Game.UI
 
             long valueNow = Workshop.EstimateNow(owned);
             var sale = session.SaleFor(owned);
-            long marketPrice = SalePricing.PriceAt(car, 0);
+            long marketPrice = SalePricing.PriceAt(car, 0, StatesRealMileage(owned));
             if (sale == null)
                 AddCard(detailsContent, owned.ListingId, car, GarageDetails(owned), null,
                     MoneyFormat.Format(valueNow),
@@ -110,7 +120,9 @@ namespace CRS.Game.UI
 
             if (sale == null)
             {
-                AddLine(UiText.Format("sale.market", lang, MoneyFormat.Format(SalePricing.MarketValue(owned.Car))), Theme.Money);
+                bool real = StatesRealMileage(owned);
+                AddLine(UiText.Format("sale.market", lang, MoneyFormat.Format(SalePricing.MarketValue(owned.Car, real))), Theme.Money);
+                if (CanStateRealMileage(owned)) AddMileageChoice(owned);
                 AddLine(UiText.Get("sale.hint", lang), Theme.Muted);
                 AddPriceButtons(owned);
                 return;
@@ -134,7 +146,7 @@ namespace CRS.Game.UI
             var prices = new List<long>();
             foreach (int step in SalePricing.PriceSteps)
             {
-                long price = SalePricing.PriceAt(owned.Car, step);
+                long price = SalePricing.PriceAt(owned.Car, step, StatesRealMileage(owned));
                 if (!prices.Contains(price)) prices.Add(price);
             }
 
@@ -208,9 +220,28 @@ namespace CRS.Game.UI
             }
         }
 
+        /// <summary>
+        /// The moral choice: state the mileage from the records (honest, cheaper)
+        /// or keep the odometer reading (more money, the buyer may come back with a claim).
+        /// </summary>
+        private void AddMileageChoice(OwnedCar owned)
+        {
+            var car = owned.Car;
+            AddCheckRow(UiText.Get("sale.mileage_title", lang),
+                UiText.Format(hideRealMileage ? "sale.mileage_odometer" : "sale.mileage_real", lang,
+                    MoneyFormat.Number(hideRealMileage ? car.DisplayedMileage : car.RealMileage)),
+                hideRealMileage ? Theme.Warning : Theme.Money,
+                UiText.Get(hideRealMileage ? "sale.mileage_to_real" : "sale.mileage_to_odometer", lang),
+                false, () =>
+                {
+                    hideRealMileage = !hideRealMileage;
+                    RedrawDetails(resetScroll: false);
+                });
+        }
+
         private void OnList(OwnedCar owned, long price)
         {
-            if (session.ListForSale(owned, price) == ListResult.Success)
+            if (session.ListForSale(owned, price, StatesRealMileage(owned)) == ListResult.Success)
                 ShowToast(UiText.Format("toast.listed", lang, MoneyFormat.Format(price)));
             SaveGame();
             Redraw(resetScroll: false);

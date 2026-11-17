@@ -1,3 +1,4 @@
+using System.Linq;
 using CRS.Core;
 using CRS.Core.Cars;
 using CRS.Core.Economy;
@@ -182,11 +183,13 @@ namespace CRS.Game.UI
 
             var player = session.Player;
             moneyText.text = MoneyFormat.Format(player.Money);
-            dayText.text = UiText.Format("top.day", lang, session.Day);
+            dayText.text = UiText.Format("top.day", lang, session.Day) + " · " +
+                           UiText.Format("top.reputation", lang, session.Reputation);
             garageText.text = UiText.Format("top.garage", lang, player.Garage.Count, player.GarageCapacity);
             langLabel.text = UiText.Get("lang.switch", lang);
             marketTabLabel.text = UiText.Get("tab.market", lang);
-            garageTabLabel.text = UiText.Get("tab.garage", lang);
+            int claims = session.OpenClaims.Count();
+            garageTabLabel.text = UiText.Get("tab.garage", lang) + (claims > 0 ? $" ({claims}!)" : string.Empty);
             nextDayLabel.text = UiText.Get("btn.next_day", lang);
             marketTabImage.color = tab == Tab.Market ? Theme.Accent : Theme.Tab;
             garageTabImage.color = tab == Tab.Garage ? Theme.Accent : Theme.Tab;
@@ -199,6 +202,7 @@ namespace CRS.Game.UI
             }
             else
             {
+                foreach (var claim in session.OpenClaims.ToList()) AddClaimCard(claim);
                 if (player.Garage.Count == 0)
                 {
                     AddNote(listContent, UiText.Get("garage.empty", lang));
@@ -333,6 +337,55 @@ namespace CRS.Game.UI
             Ui.Layout(note, minHeight: 80);
         }
 
+        /// <summary>A cheated buyer came back: pay him back or refuse.</summary>
+        private void AddClaimCard(Claim claim)
+        {
+            var card = Ui.CreateImage("Claim", listContent, Theme.Card);
+            Ui.Vertical(card.gameObject, 8, Ui.Pad(16));
+
+            Ui.CreateText("Title", card.transform, 26, Theme.Danger, FontStyle.Bold, TextAnchor.UpperLeft).text =
+                UiText.Format("claim.title", lang, claim.Car.Title(lang));
+
+            string reason = claim.OdometerFraud && claim.Defects > 0 ? "claim.reason.both"
+                : claim.OdometerFraud ? "claim.reason.odometer" : "claim.reason.defects";
+            Ui.CreateText("Text", card.transform, 22, Theme.Text, FontStyle.Normal, TextAnchor.UpperLeft).text =
+                UiText.Format(reason, lang, MoneyFormat.Format(claim.Amount));
+            Ui.CreateText("Deadline", card.transform, 20, Theme.Muted, FontStyle.Normal, TextAnchor.UpperLeft).text =
+                UiText.Format("claim.deadline", lang, claim.Deadline);
+
+            var row = Ui.CreateRect("Buttons", card.transform);
+            Ui.Horizontal(row.gameObject, 10);
+            bool canPay = session.Player.Money >= claim.Amount;
+            var pay = Ui.CreateButton("Pay", row, 22, canPay ? Theme.Buy : Theme.Disabled, () => OnPayClaim(claim), out var payLabel);
+            payLabel.text = UiText.Format("claim.pay", lang, MoneyFormat.Format(claim.Amount), Reputation.ClaimPaid);
+            Ui.Layout(pay, minWidth: 200, preferredWidth: 0, flexibleWidth: 1, minHeight: 56);
+            var refuse = Ui.CreateButton("Refuse", row, 22, Theme.Danger, () => OnRefuseClaim(claim), out var refuseLabel);
+            refuseLabel.text = UiText.Format("claim.refuse", lang, Reputation.ClaimRefused);
+            Ui.Layout(refuse, minWidth: 200, preferredWidth: 0, flexibleWidth: 1, minHeight: 56);
+        }
+
+        private void OnPayClaim(Claim claim)
+        {
+            switch (session.PayClaim(claim))
+            {
+                case ClaimResult.Paid:
+                    ShowToast(UiText.Format("toast.claim_paid", lang, MoneyFormat.Format(claim.Amount)));
+                    break;
+                case ClaimResult.NotEnoughMoney:
+                    ShowToast(UiText.Format("toast.no_money", lang, MoneyFormat.Format(claim.Amount - session.Player.Money)));
+                    break;
+            }
+            SaveGame();
+            Redraw(resetScroll: false);
+        }
+
+        private void OnRefuseClaim(Claim claim)
+        {
+            if (session.RefuseClaim(claim) == ClaimResult.Refused) ShowToast(UiText.Get("toast.claim_refused", lang));
+            SaveGame();
+            Redraw(resetScroll: false);
+        }
+
         /// <summary>Starting over is at the bottom of the garage and needs a second tap.</summary>
         private void AddRestartButton()
         {
@@ -395,7 +448,10 @@ namespace CRS.Game.UI
         {
             DayReport report = session.NextDay();
             SaveGame();
-            ShowToast(UiText.Format("toast.next_day", lang, report.Day, MoneyFormat.Format(report.RentPaid), report.NewBuyers));
+            string text = UiText.Format("toast.next_day", lang, report.Day, MoneyFormat.Format(report.RentPaid), report.NewBuyers);
+            if (report.NewClaims > 0) text += "\n" + UiText.Format("toast.claims", lang, report.NewClaims);
+            if (report.ExpiredClaims > 0) text += "\n" + UiText.Format("toast.claims_expired", lang, report.ExpiredClaims);
+            ShowToast(text);
 
             // Yesterday's listings are gone, so a listing screen cannot stay open.
             if (openListing != null) CloseDetails();

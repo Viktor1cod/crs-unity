@@ -16,6 +16,9 @@ namespace CRS.Core.Economy
         private readonly List<SaleListing> sales = new List<SaleListing>();
         private readonly List<SaleRecord> history = new List<SaleRecord>();
         private readonly BuyerGenerator buyers;
+        private readonly List<Claim> claims = new List<Claim>();
+        private readonly Random claimRng;
+        private int nextClaimId = 1;
 
         public readonly PlayerState Player;
         public readonly Marketplace Market;
@@ -27,12 +30,30 @@ namespace CRS.Core.Economy
         /// <summary>Finished sales, oldest first.</summary>
         public IReadOnlyList<SaleRecord> History => history;
 
+        /// <summary>How buyers see the player, 0..100.</summary>
+        public int Reputation
+        {
+            get => buyers.Reputation;
+            private set => buyers.Reputation = Selling.Reputation.Clamp(value);
+        }
+
+        /// <summary>Claims of cheated buyers that have already come back and wait for an answer.</summary>
+        public IEnumerable<Claim> OpenClaims
+        {
+            get
+            {
+                foreach (var claim in claims)
+                    if (claim.IsVisible(Day)) yield return claim;
+            }
+        }
+
         public GameSession(int seed)
         {
             this.seed = seed;
             Player = new PlayerState(GameBalance.StartMoney, GameBalance.StartGarageCapacity);
             Market = new Marketplace(seed, GameBalance.ListingsPerRefresh, GameBalance.MinAffordableListings, Player.Money);
             buyers = new BuyerGenerator(unchecked(seed * 17 + 3));
+            claimRng = new Random(unchecked(seed * 13 + 5));
         }
 
         /// <summary>A session rebuilt from a save, see GameSession.Saves.cs.</summary>
@@ -43,6 +64,7 @@ namespace CRS.Core.Economy
             Player = player;
             Market = market;
             buyers = new BuyerGenerator(unchecked(seed * 17 + 3 + day * 101)) { NextId = nextBuyerId };
+            claimRng = new Random(unchecked(seed * 13 + 5 + day * 101));
         }
 
         // ---------- inspection ----------
@@ -134,12 +156,13 @@ namespace CRS.Core.Economy
         }
 
         /// <summary>Puts a garage car on sale. Buyers come with the next day.</summary>
-        public ListResult ListForSale(OwnedCar owned, long askingPrice)
+        /// <param name="realMileage">State the mileage from the records in the ad (only matters for a rolled-back odometer).</param>
+        public ListResult ListForSale(OwnedCar owned, long askingPrice, bool realMileage = false)
         {
             if (!Player.Owns(owned)) return ListResult.NotOwned;
             if (SaleFor(owned) != null) return ListResult.AlreadyListed;
             if (askingPrice <= 0) return ListResult.InvalidPrice;
-            sales.Add(new SaleListing(owned, askingPrice, Day));
+            sales.Add(new SaleListing(owned, askingPrice, Day, realMileage));
             return ListResult.Success;
         }
 
@@ -175,9 +198,54 @@ namespace CRS.Core.Economy
 
             Player.Earn(offer.Price);
             sales.Remove(sale);
-            var record = new SaleRecord(owned, Day, offer.Price, offer.Type);
+            var record = new SaleRecord(owned, Day, offer.Price, offer.Type, sale.RealMileage);
             history.Add(record);
+            AfterSale(record, sale.RealMileage);
             return record;
+        }
+
+        // ---------- reputation and claims ----------
+
+        /// <summary>
+        /// An honest car raises reputation. A car with hidden problems sold to someone
+        /// who did not inspect it may bring the buyer back with a claim a few days later.
+        /// An expert saw the problems and paid for what the car is, so he has nothing to claim.
+        /// </summary>
+        private void AfterSale(SaleRecord record, bool mileageDisclosed)
+        {
+            if (!record.HadHiddenProblems)
+            {
+                Reputation += Selling.Reputation.HonestSale;
+                return;
+            }
+            if (record.Buyer == BuyerType.Expert) return;
+            if (claimRng.NextDouble() >= Selling.Reputation.ClaimChance) return;
+
+            int delay = claimRng.Next(Selling.Reputation.ClaimMinDelay, Selling.Reputation.ClaimMaxDelay + 1);
+            bool odometerFraud = record.Car.IsOdometerRolledBack && !mileageDisclosed;
+            claims.Add(new Claim(nextClaimId++, record.Car,
+                Selling.Reputation.ClaimAmount(record.Car, odometerFraud), Day + delay,
+                odometerFraud, record.Car.HiddenDefects.Count));
+        }
+
+        /// <summary>Refund the cheated buyer: costs money, but reputation suffers less.</summary>
+        public ClaimResult PayClaim(Claim claim)
+        {
+            if (claim == null || !claims.Contains(claim) || !claim.IsVisible(Day)) return ClaimResult.NotFound;
+            if (Player.Money < claim.Amount) return ClaimResult.NotEnoughMoney;
+            Player.Spend(claim.Amount);
+            claims.Remove(claim);
+            Reputation += Selling.Reputation.ClaimPaid;
+            return ClaimResult.Paid;
+        }
+
+        /// <summary>Refuse the cheated buyer: keeps the money, the story spreads.</summary>
+        public ClaimResult RefuseClaim(Claim claim)
+        {
+            if (claim == null || !claims.Contains(claim) || !claim.IsVisible(Day)) return ClaimResult.NotFound;
+            claims.Remove(claim);
+            Reputation += Selling.Reputation.ClaimRefused;
+            return ClaimResult.Refused;
         }
 
         // ---------- days ----------
@@ -192,17 +260,23 @@ namespace CRS.Core.Economy
             long rent = Player.PayUpTo(GameBalance.DailyGarageRent);
             RefreshMarket();
 
+            int expired = claims.RemoveAll(c => Day > c.Deadline);
+            Reputation += expired * Selling.Reputation.ClaimRefused;
+            int newClaims = 0;
+            foreach (var claim in claims)
+                if (claim.DueDay == Day) newClaims++;
+
             int newBuyers = 0;
             foreach (var sale in sales)
             {
                 sale.ClearOffers();
-                foreach (var buyer in buyers.BuyersForDay(sale.Owned.Car, sale.AskingPrice))
+                foreach (var buyer in buyers.BuyersForDay(sale.Owned.Car, sale.AskingPrice, sale.RealMileage))
                 {
                     sale.AddOffer(buyer);
                     newBuyers++;
                 }
             }
-            return new DayReport(Day, rent, newBuyers);
+            return new DayReport(Day, rent, newBuyers, newClaims, expired);
         }
     }
 }

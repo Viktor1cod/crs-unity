@@ -29,35 +29,39 @@ namespace CRS.Core.Selling
             set => nextId = Math.Max(1, value);
         }
 
+        /// <summary>The player's reputation; changes how many buyers come and what they pay.</summary>
+        public int Reputation { get; set; } = Selling.Reputation.Start;
+
         /// <summary>Chance (0..1) that each of the day's possible buyers shows up.</summary>
-        public static double Interest(Car car, long askingPrice)
+        public static double Interest(Car car, long askingPrice, int reputation = Selling.Reputation.Start,
+            bool realMileage = false)
         {
-            double ratio = askingPrice / (double)SalePricing.MarketValue(car);
+            double ratio = askingPrice / (double)SalePricing.MarketValue(car, realMileage);
             double priceFactor = Math.Max(0, Math.Min(1.5, (NoInterestRatio - ratio) / (NoInterestRatio - 1.0)));
-            double buyersPerDay = (0.5 + 1.5 * car.Brand.Liquidity) * priceFactor;
+            double buyersPerDay = (0.5 + 1.5 * car.Brand.Liquidity) * priceFactor * Selling.Reputation.InterestFactor(reputation);
             return Math.Min(1, buyersPerDay / MaxBuyersPerDay);
         }
 
         /// <summary>Buyers who come for the car today. May be empty.</summary>
-        public List<BuyerOffer> BuyersForDay(Car car, long askingPrice)
+        public List<BuyerOffer> BuyersForDay(Car car, long askingPrice, bool realMileage = false)
         {
             var buyers = new List<BuyerOffer>();
-            double interest = Interest(car, askingPrice);
+            double interest = Interest(car, askingPrice, Reputation, realMileage);
             for (int i = 0; i < MaxBuyersPerDay; i++)
-                if (rng.NextDouble() < interest) buyers.Add(Create(car, askingPrice));
+                if (rng.NextDouble() < interest) buyers.Add(Create(car, askingPrice, realMileage));
             return buyers;
         }
 
-        public BuyerOffer Create(Car car, long askingPrice)
+        public BuyerOffer Create(Car car, long askingPrice, bool realMileage = false)
         {
             double r = rng.NextDouble();
             var type = r < 0.55 ? BuyerType.Regular : r < 0.85 ? BuyerType.Bargainer : BuyerType.Expert;
-            return Create(car, askingPrice, type);
+            return Create(car, askingPrice, type, realMileage);
         }
 
-        public BuyerOffer Create(Car car, long askingPrice, BuyerType type)
+        public BuyerOffer Create(Car car, long askingPrice, BuyerType type, bool realMileage = false)
         {
-            long market = SalePricing.MarketValue(car);
+            long market = SalePricing.MarketValue(car, realMileage);
             double max;
             int patience;
             double stubbornness;
@@ -90,6 +94,7 @@ namespace CRS.Core.Selling
                     break;
             }
 
+            max *= Selling.Reputation.PriceFactor(Reputation);
             long maxPrice = Math.Max(CarValuation.MarketStep(max), BuyerOffer.RoundPrice(max));
             long opening = BuyerOffer.RoundPrice(maxPrice * Range(0.86, 0.95));
             opening = Math.Max(CarValuation.MarketStep(opening), Math.Min(opening, Math.Min(maxPrice, askingPrice)));

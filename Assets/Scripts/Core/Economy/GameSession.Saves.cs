@@ -27,7 +27,22 @@ namespace CRS.Core.Economy
                 garageCapacity = Player.GarageCapacity,
                 nextListingId = Market.NextListingId,
                 nextBuyerId = buyers.NextId,
+                reputation = Reputation,
+                nextClaimId = nextClaimId,
             };
+
+            foreach (var claim in claims)
+            {
+                data.claims.Add(new ClaimData
+                {
+                    id = claim.Id,
+                    car = ToData(claim.Car),
+                    amount = claim.Amount,
+                    dueDay = claim.DueDay,
+                    odometerFraud = claim.OdometerFraud,
+                    defects = claim.Defects,
+                });
+            }
 
             foreach (var owned in Player.Garage)
             {
@@ -87,6 +102,7 @@ namespace CRS.Core.Economy
                     garageIndex = index,
                     askingPrice = sale.AskingPrice,
                     dayListed = sale.DayListed,
+                    realMileage = sale.RealMileage,
                     offers = sale.Offers.Select(o => new BuyerOfferData
                     {
                         id = o.Id, type = o.Type, openingPrice = o.OpeningPrice, price = o.Price, maxPrice = o.MaxPrice,
@@ -175,7 +191,9 @@ namespace CRS.Core.Economy
             Require(data.day >= 1, "day");
             Require(data.money >= 0, "money");
             Require(data.garageCapacity >= 0, "garage capacity");
-            Require(data.garage != null && data.market != null && data.sales != null && data.history != null, "lists");
+            Require(data.garage != null && data.market != null && data.sales != null && data.history != null
+                    && data.claims != null, "lists");
+            Require(data.reputation >= Selling.Reputation.Min && data.reputation <= Selling.Reputation.Max, "reputation");
             Require(data.garage.Count <= data.garageCapacity, "garage size");
 
             var player = new PlayerState(data.money, data.garageCapacity);
@@ -206,6 +224,11 @@ namespace CRS.Core.Economy
                 listings, Math.Max(data.nextListingId, listings.Count == 0 ? 1 : listings.Max(l => l.Id) + 1));
 
             var session = new GameSession(data.seed, data.day, player, market, data.nextBuyerId);
+            session.Reputation = data.reputation;
+            foreach (var item in data.claims)
+                session.claims.Add(new Claim(item.id, ToCar(item.car), item.amount, item.dueDay, item.odometerFraud, item.defects));
+            session.nextClaimId = Math.Max(data.nextClaimId,
+                data.claims.Count == 0 ? 1 : data.claims.Max(c => c.id) + 1);
 
             for (int i = 0; i < listings.Count; i++)
             {
@@ -234,7 +257,7 @@ namespace CRS.Core.Economy
                 Require(item.garageIndex >= 0 && item.garageIndex < player.Garage.Count, "sale car");
                 var owned = player.Garage[item.garageIndex];
                 Require(session.SaleFor(owned) == null, "car listed twice");
-                var sale = new SaleListing(owned, item.askingPrice, item.dayListed);
+                var sale = new SaleListing(owned, item.askingPrice, item.dayListed, item.realMileage);
                 foreach (var o in item.offers ?? new List<BuyerOfferData>())
                 {
                     var turns = (o.turns ?? new List<BuyerTurnData>())

@@ -14,7 +14,8 @@ namespace CRS.Core.Saves
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 1;
+        /// <summary>2: reputation and buyer claims.</summary>
+        public const int CurrentVersion = 2;
 
         public int version = CurrentVersion;
         public int seed;
@@ -23,6 +24,9 @@ namespace CRS.Core.Saves
         public int garageCapacity;
         public int nextListingId = 1;
         public int nextBuyerId = 1;
+        public int reputation = Reputation.Start;
+        public int nextClaimId = 1;
+        public List<ClaimData> claims = new List<ClaimData>();
         public List<OwnedCarData> garage = new List<OwnedCarData>();
         public List<ListingData> market = new List<ListingData>();
         public List<SaleData> sales = new List<SaleData>();
@@ -108,6 +112,7 @@ namespace CRS.Core.Saves
         public int garageIndex;
         public long askingPrice;
         public int dayListed;
+        public bool realMileage;
         public List<BuyerOfferData> offers = new List<BuyerOfferData>();
     }
 
@@ -133,6 +138,17 @@ namespace CRS.Core.Saves
         public BuyerReaction reaction;
         public long price;
         public string phraseKey;
+    }
+
+    [Serializable]
+    public sealed class ClaimData
+    {
+        public int id;
+        public CarData car = new CarData();
+        public long amount;
+        public int dueDay;
+        public bool odometerFraud;
+        public int defects;
     }
 
     [Serializable]

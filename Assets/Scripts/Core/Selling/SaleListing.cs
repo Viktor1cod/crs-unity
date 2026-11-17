@@ -14,13 +14,20 @@ namespace CRS.Core.Selling
         /// <summary>What an ordinary buyer thinks the car is worth: odometer reading and visible condition.</summary>
         public static long MarketValue(Car car) => CarValuation.ApparentValue(car);
 
+        /// <summary>
+        /// Market value of the car as advertised. With <paramref name="realMileage"/> the ad states
+        /// the mileage from the records instead of the rolled-back odometer.
+        /// </summary>
+        public static long MarketValue(Car car, bool realMileage) =>
+            realMileage ? CarValuation.Estimate(car, car.RealMileage, car.AverageVisibleCondition, 0) : MarketValue(car);
+
         /// <summary>What a buyer who inspects the car finds out: real mileage and hidden defects.</summary>
         public static long InspectedValue(Car car) => CarValuation.TrueValue(car);
 
         /// <summary>Market price shifted by a percent and rounded like a real listing.</summary>
-        public static long PriceAt(Car car, int percent)
+        public static long PriceAt(Car car, int percent, bool realMileage = false)
         {
-            double raw = MarketValue(car) * (1 + percent / 100.0);
+            double raw = MarketValue(car, realMileage) * (1 + percent / 100.0);
             return Math.Max(CarValuation.MarketStep(raw), PriceMath.RoundToMarket((long)Math.Round(raw), CarValuation.MarketStep(raw)));
         }
     }
@@ -33,15 +40,18 @@ namespace CRS.Core.Selling
         public readonly OwnedCar Owned;
         public readonly long AskingPrice;
         public readonly int DayListed;
+        /// <summary>The ad states the real mileage from the records: buyers pay less, but nobody is cheated.</summary>
+        public readonly bool RealMileage;
 
         public IReadOnlyList<BuyerOffer> Offers => offers;
 
-        public SaleListing(OwnedCar owned, long askingPrice, int dayListed)
+        public SaleListing(OwnedCar owned, long askingPrice, int dayListed, bool realMileage = false)
         {
             if (askingPrice <= 0) throw new ArgumentOutOfRangeException(nameof(askingPrice));
             Owned = owned ?? throw new ArgumentNullException(nameof(owned));
             AskingPrice = askingPrice;
             DayListed = dayListed;
+            RealMileage = realMileage && owned.Car.IsOdometerRolledBack;
         }
 
         public bool Contains(BuyerOffer offer) => offers.Contains(offer);
@@ -71,9 +81,9 @@ namespace CRS.Core.Selling
 
         public long Profit => PriceMath.Profit(PurchasePrice, Invested, SalePrice);
 
-        public SaleRecord(OwnedCar owned, int day, long salePrice, BuyerType buyer)
+        public SaleRecord(OwnedCar owned, int day, long salePrice, BuyerType buyer, bool mileageDisclosed = false)
             : this(owned.Car, day, owned.PurchasePrice, owned.Invested, salePrice, buyer,
-                owned.Car.IsOdometerRolledBack || owned.Car.HiddenDefects.Count > 0)
+                (owned.Car.IsOdometerRolledBack && !mileageDisclosed) || owned.Car.HiddenDefects.Count > 0)
         {
         }
 
@@ -107,12 +117,18 @@ namespace CRS.Core.Selling
         public readonly long RentPaid;
         /// <summary>Buyers who came for the player's cars this morning.</summary>
         public readonly int NewBuyers;
+        /// <summary>Cheated buyers who came back today.</summary>
+        public readonly int NewClaims;
+        /// <summary>Claims left unanswered too long: counted as refused.</summary>
+        public readonly int ExpiredClaims;
 
-        public DayReport(int day, long rentPaid, int newBuyers)
+        public DayReport(int day, long rentPaid, int newBuyers, int newClaims = 0, int expiredClaims = 0)
         {
             Day = day;
             RentPaid = rentPaid;
             NewBuyers = newBuyers;
+            NewClaims = newClaims;
+            ExpiredClaims = expiredClaims;
         }
     }
 }
