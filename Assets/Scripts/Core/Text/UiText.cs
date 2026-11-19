@@ -123,6 +123,15 @@ namespace CRS.Core
             ["sale.mileage_to_real"] = new[] { "Указать реальный",                                    "State the real one" },
             ["sale.mileage_to_odometer"] = new[] { "Умолчать",                                        "Keep quiet" },
 
+            // Garage upgrades
+            ["upgrade.title"]     = new[] { "Гараж на {0} мест",                                      "Garage for {0} cars" },
+            ["upgrade.gives"]     = new[] { "Больше машин сразу, продавцы звонят чаще: {0} объявлений в день. Аренда {1} в день.",
+                                            "More cars at once, sellers call more often: {0} listings a day. Rent {1} a day." },
+            ["upgrade.need_rep"]  = new[] { "Нужна репутация {0}: большой бокс сдают только надёжным.", "Needs reputation {0}: big boxes are rented to trusted dealers only." },
+            ["upgrade.btn"]       = new[] { "Расширить за {0}",                                       "Expand for {0}" },
+            ["upgrade.max"]       = new[] { "У вас самый большой гараж",                              "You have the biggest garage" },
+            ["toast.upgraded"]    = new[] { "Гараж расширен: {0} мест",                               "Garage expanded: {0} places" },
+
             // Saves
             ["btn.restart"]       = new[] { "Начать новую игру",                                      "Start a new game" },
             ["btn.restart_confirm"] = new[] { "Стереть прогресс? Нажмите ещё раз",                    "Erase progress? Tap again" },

@@ -14,7 +14,8 @@ namespace CRS.Core.Economy
         private readonly Random rng;
         private readonly List<Listing> listings = new List<Listing>();
 
-        public readonly int Size;
+        /// <summary>Listings on the board after each refresh. Grows with the player's business.</summary>
+        public int Size { get; private set; }
         public readonly int MinAffordable;
 
         public IReadOnlyList<Listing> Listings => listings;
@@ -62,6 +63,13 @@ namespace CRS.Core.Economy
                 listings[i] = listings[j];
                 listings[j] = tmp;
             }
+        }
+
+        /// <summary>More listings from the next refresh on.</summary>
+        public void Grow(int size)
+        {
+            if (size < Size) throw new ArgumentOutOfRangeException(nameof(size));
+            Size = size;
         }
 
         public bool Contains(Listing listing) => listings.Contains(listing);

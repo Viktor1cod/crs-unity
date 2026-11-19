@@ -9,7 +9,7 @@ namespace CRS.Core.Economy
         private readonly List<OwnedCar> garage = new List<OwnedCar>();
 
         public long Money { get; private set; }
-        public int GarageCapacity { get; }
+        public int GarageCapacity { get; private set; }
         public IReadOnlyList<OwnedCar> Garage => garage;
         public bool HasFreeSlot => garage.Count < GarageCapacity;
 
@@ -54,5 +54,12 @@ namespace CRS.Core.Economy
         public bool RemoveCar(OwnedCar car) => garage.Remove(car);
 
         public bool Owns(OwnedCar car) => car != null && garage.Contains(car);
+
+        /// <summary>A bigger garage. It never shrinks.</summary>
+        public void ExpandGarage(int capacity)
+        {
+            if (capacity <= GarageCapacity) throw new ArgumentOutOfRangeException(nameof(capacity));
+            GarageCapacity = capacity;
+        }
     }
 }

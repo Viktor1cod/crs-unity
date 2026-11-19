@@ -248,6 +248,34 @@ namespace CRS.Core.Economy
             return ClaimResult.Refused;
         }
 
+        // ---------- garage ----------
+
+        /// <summary>What the garage costs every new day.</summary>
+        public long DailyRent => GarageUpgrades.DailyRent(Player.GarageCapacity);
+
+        /// <summary>The next garage size the player can buy, or null at the top.</summary>
+        public GarageUpgrade NextGarageUpgrade => GarageUpgrades.Next(Player.GarageCapacity);
+
+        public UpgradeResult CanUpgradeGarage()
+        {
+            var next = NextGarageUpgrade;
+            if (next == null) return UpgradeResult.MaxLevel;
+            if (Reputation < next.MinReputation) return UpgradeResult.LowReputation;
+            if (Player.Money < next.Price) return UpgradeResult.NotEnoughMoney;
+            return UpgradeResult.Success;
+        }
+
+        public UpgradeResult UpgradeGarage()
+        {
+            var result = CanUpgradeGarage();
+            if (result != UpgradeResult.Success) return result;
+            var next = NextGarageUpgrade;
+            Player.Spend(next.Price);
+            Player.ExpandGarage(next.Capacity);
+            Market.Grow(GarageUpgrades.BoardSize(next.Capacity));
+            return UpgradeResult.Success;
+        }
+
         // ---------- days ----------
 
         /// <summary>
@@ -257,7 +285,7 @@ namespace CRS.Core.Economy
         public DayReport NextDay()
         {
             Day++;
-            long rent = Player.PayUpTo(GameBalance.DailyGarageRent);
+            long rent = Player.PayUpTo(DailyRent);
             RefreshMarket();
 
             int expired = claims.RemoveAll(c => Day > c.Deadline);

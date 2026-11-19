@@ -190,7 +190,8 @@ namespace CRS.Core.Economy
         {
             Require(data.day >= 1, "day");
             Require(data.money >= 0, "money");
-            Require(data.garageCapacity >= 0, "garage capacity");
+            Require(data.garageCapacity >= GameBalance.StartGarageCapacity
+                    && data.garageCapacity <= GarageUpgrades.All[GarageUpgrades.All.Count - 1].Capacity, "garage capacity");
             Require(data.garage != null && data.market != null && data.sales != null && data.history != null
                     && data.claims != null, "lists");
             Require(data.reputation >= Selling.Reputation.Min && data.reputation <= Selling.Reputation.Max, "reputation");
@@ -220,7 +221,7 @@ namespace CRS.Core.Economy
 
             // A different seed after every load: reloading the page must not replay the same board.
             int marketSeed = unchecked(data.seed * 31 + data.day * 7919 + data.nextListingId);
-            var market = Marketplace.Restore(marketSeed, GameBalance.ListingsPerRefresh, GameBalance.MinAffordableListings,
+            var market = Marketplace.Restore(marketSeed, GarageUpgrades.BoardSize(data.garageCapacity), GameBalance.MinAffordableListings,
                 listings, Math.Max(data.nextListingId, listings.Count == 0 ? 1 : listings.Max(l => l.Id) + 1));
 
             var session = new GameSession(data.seed, data.day, player, market, data.nextBuyerId);

@@ -211,6 +211,7 @@ namespace CRS.Game.UI
                 {
                     foreach (var owned in player.Garage) AddGarageCard(owned);
                 }
+                AddUpgradeCard();
                 AddRestartButton();
             }
 
@@ -382,6 +383,58 @@ namespace CRS.Game.UI
         private void OnRefuseClaim(Claim claim)
         {
             if (session.RefuseClaim(claim) == ClaimResult.Refused) ShowToast(UiText.Get("toast.claim_refused", lang));
+            SaveGame();
+            Redraw(resetScroll: false);
+        }
+
+        /// <summary>The next garage size: price, what it gives and why it may be locked.</summary>
+        private void AddUpgradeCard()
+        {
+            var next = session.NextGarageUpgrade;
+            var card = Ui.CreateImage("Upgrade", listContent, Theme.Card);
+            Ui.Horizontal(card.gameObject, 16, Ui.Pad(16));
+
+            var texts = Ui.CreateRect("Texts", card.transform);
+            Ui.Vertical(texts.gameObject, 4);
+            Ui.Layout(texts, minWidth: 160, preferredWidth: 0, flexibleWidth: 1);
+
+            if (next == null)
+            {
+                Ui.CreateText("Title", texts, 24, Theme.Text, FontStyle.Bold, TextAnchor.UpperLeft).text =
+                    UiText.Get("upgrade.max", lang);
+                return;
+            }
+
+            Ui.CreateText("Title", texts, 24, Theme.Text, FontStyle.Bold, TextAnchor.UpperLeft).text =
+                UiText.Format("upgrade.title", lang, next.Capacity);
+            Ui.CreateText("Gives", texts, 22, Theme.Muted, FontStyle.Normal, TextAnchor.UpperLeft).text =
+                UiText.Format("upgrade.gives", lang, GarageUpgrades.BoardSize(next.Capacity),
+                    MoneyFormat.Format(GarageUpgrades.DailyRent(next.Capacity)));
+
+            var state = session.CanUpgradeGarage();
+            if (state == UpgradeResult.LowReputation)
+                Ui.CreateText("Need", texts, 22, Theme.Warning, FontStyle.Normal, TextAnchor.UpperLeft).text =
+                    UiText.Format("upgrade.need_rep", lang, next.MinReputation);
+
+            bool available = state == UpgradeResult.Success;
+            var button = Ui.CreateButton("Buy", card.transform, 22, available ? Theme.Buy : Theme.Disabled, OnUpgrade, out var label);
+            label.text = UiText.Format("upgrade.btn", lang, MoneyFormat.Format(next.Price));
+            button.interactable = state != UpgradeResult.LowReputation;
+            Ui.Layout(button, minWidth: 200, minHeight: 56);
+        }
+
+        private void OnUpgrade()
+        {
+            var next = session.NextGarageUpgrade;
+            switch (session.UpgradeGarage())
+            {
+                case UpgradeResult.Success:
+                    ShowToast(UiText.Format("toast.upgraded", lang, session.Player.GarageCapacity));
+                    break;
+                case UpgradeResult.NotEnoughMoney:
+                    ShowToast(UiText.Format("toast.no_money", lang, MoneyFormat.Format(next.Price - session.Player.Money)));
+                    break;
+            }
             SaveGame();
             Redraw(resetScroll: false);
         }

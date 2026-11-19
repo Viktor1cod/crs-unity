@@ -9,7 +9,10 @@ namespace CRS.Core.Economy
         public const int ListingsPerRefresh = 8;
         /// <summary>The board always has at least this many cars the player can afford.</summary>
         public const int MinAffordableListings = 2;
-        /// <summary>Garage rent charged every new day, so waiting for a better board is not free.</summary>
-        public const long DailyGarageRent = 30;
+        /// <summary>
+        /// Garage rent per place, charged every new day, so waiting for a better board is not free.
+        /// The starting garage of two places costs $30 a day.
+        /// </summary>
+        public const long RentPerPlace = 15;
     }
 }

@@ -289,8 +289,8 @@ namespace CRS.Tests
 
             Assert.AreEqual(2, session.Day);
             Assert.AreEqual(2, report.Day);
-            Assert.AreEqual(GameBalance.DailyGarageRent, report.RentPaid);
-            Assert.AreEqual(GameBalance.StartMoney - GameBalance.DailyGarageRent, session.Player.Money);
+            Assert.AreEqual(GameBalance.StartGarageCapacity * GameBalance.RentPerPlace, report.RentPaid);
+            Assert.AreEqual(GameBalance.StartMoney - report.RentPaid, session.Player.Money);
             Assert.AreEqual(GameBalance.ListingsPerRefresh, session.Market.Listings.Count);
             CollectionAssert.IsNotSubsetOf(session.Market.Listings, before);
         }
