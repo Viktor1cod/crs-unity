@@ -65,6 +65,17 @@ namespace CRS.Core.Economy
             }
         }
 
+        /// <summary>Puts a new listing on top of the board instead of the first one.</summary>
+        public void PutOnTop(Listing listing)
+        {
+            if (listing == null) throw new ArgumentNullException(nameof(listing));
+            if (listings.Count == 0) listings.Add(listing);
+            else listings[0] = listing;
+        }
+
+        /// <summary>A starter deal for a new game, see <see cref="ListingGenerator.GenerateStarter"/>.</summary>
+        public Listing GenerateStarter(long budget) => generator.GenerateStarter(budget);
+
         /// <summary>More listings from the next refresh on.</summary>
         public void Grow(int size)
         {

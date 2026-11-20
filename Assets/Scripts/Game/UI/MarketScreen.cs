@@ -56,7 +56,7 @@ namespace CRS.Game.UI
         private void Awake()
         {
             lang = Application.systemLanguage == SystemLanguage.Russian ? Language.Ru : Language.En;
-            session = SaveStorage.Load() ?? new GameSession(System.Environment.TickCount);
+            session = SaveStorage.Load() ?? GameSession.NewGame(System.Environment.TickCount);
             Ui.LoadFont();
             EnsureEventSystem();
             Build();
@@ -128,6 +128,7 @@ namespace CRS.Game.UI
             Ui.Layout(Ui.CreateRect("Spacer", tabs), flexibleWidth: 1);
             Ui.CreateButton("NextDay", tabs, 22, Theme.Buy, OnNextDay, out nextDayLabel);
 
+            mainTutorial = CreateTutorialBanner(background.transform);
             CreateScrollList(background.transform, out scroll, out listContent);
 
             // Toast at the bottom, above everything
@@ -215,6 +216,7 @@ namespace CRS.Game.UI
                 AddRestartButton();
             }
 
+            RefreshTutorial();
             if (resetScroll) scroll.ScrollToTop();
         }
 
@@ -336,6 +338,49 @@ namespace CRS.Game.UI
             var note = Ui.CreateText("Note", parent, 24, Theme.Muted, FontStyle.Normal, TextAnchor.MiddleCenter);
             note.text = text;
             Ui.Layout(note, minHeight: 80);
+        }
+
+        // ---------- tutorial ----------
+
+        private sealed class TutorialBanner
+        {
+            public GameObject Root;
+            public Text Text;
+            public Text ButtonLabel;
+        }
+
+        private TutorialBanner mainTutorial, detailsTutorial;
+
+        /// <summary>A hint strip between the header and the list. Hidden when there is nothing to say.</summary>
+        private TutorialBanner CreateTutorialBanner(Transform parent)
+        {
+            var image = Ui.CreateImage("Tutorial", parent, Theme.Tutorial);
+            Ui.Horizontal(image.gameObject, 16, Ui.Pad(14));
+            var text = Ui.CreateText("Text", image.transform, 22, Theme.Text, FontStyle.Normal, TextAnchor.MiddleLeft);
+            Ui.Layout(text, minWidth: 160, preferredWidth: 0, flexibleWidth: 1);
+            Ui.CreateButton("Close", image.transform, 20, Theme.Tab, OnTutorialButton, out var label);
+            image.gameObject.SetActive(false);
+            return new TutorialBanner { Root = image.gameObject, Text = text, ButtonLabel = label };
+        }
+
+        private void RefreshTutorial()
+        {
+            var step = Tutorial.Step(session, openListing, openOwned);
+            foreach (var banner in new[] { mainTutorial, detailsTutorial })
+            {
+                if (banner == null) continue;
+                banner.Root.SetActive(step != TutorialStep.None);
+                if (step == TutorialStep.None) continue;
+                banner.Text.text = UiText.Get(Tutorial.TextKey(step), lang);
+                banner.ButtonLabel.text = UiText.Get(step == TutorialStep.Done ? "tutorial.ok" : "tutorial.skip", lang);
+            }
+        }
+
+        private void OnTutorialButton()
+        {
+            session.FinishTutorial();
+            SaveGame();
+            RefreshTutorial();
         }
 
         /// <summary>A cheated buyer came back: pay him back or refuse.</summary>
@@ -465,7 +510,7 @@ namespace CRS.Game.UI
             }
 
             restartConfirmUntil = 0;
-            session = new GameSession(System.Environment.TickCount);
+            session = GameSession.NewGame(System.Environment.TickCount);
             SaveGame();
             tab = Tab.Market;
             ShowToast(UiText.Get("toast.restarted", lang));

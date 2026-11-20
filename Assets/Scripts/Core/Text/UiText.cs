@@ -123,6 +123,28 @@ namespace CRS.Core
             ["sale.mileage_to_real"] = new[] { "Указать реальный",                                    "State the real one" },
             ["sale.mileage_to_odometer"] = new[] { "Умолчать",                                        "Keep quiet" },
 
+            // Tutorial
+            ["tutorial.pickcar"]  = new[] { "Обучение. Найдите выгодную машину и нажмите «Осмотреть». Подсказка: «Срочно!» в объявлении значит, что продавцу нужны деньги и он уступит больше.",
+                                            "Tutorial. Find a good car and tap \"Inspect\". Tip: \"Urgent!\" in an ad means the seller needs cash and will give more of a discount." },
+            ["tutorial.inspect"]  = new[] { "Проверьте машину: проверка по базе покажет реальный пробег, диагностика найдёт скрытые неисправности. Проверки стоят денег, но спасают от плохих покупок.",
+                                            "Check the car: the records show the real mileage, diagnostics find hidden faults. Checks cost money but save you from bad buys." },
+            ["tutorial.haggle"]   = new[] { "Теперь торгуйтесь: предложите цену ниже. Найденные неисправности — аргумент для скидки. Не жадничайте: продавец может уйти.",
+                                            "Now haggle: offer a lower price. The faults you found are arguments for a discount. Don't push too hard: the seller may walk away." },
+            ["tutorial.buy"]      = new[] { "Цена устраивает? Нажмите зелёную кнопку «Купить» вверху.",
+                                            "Happy with the price? Tap the green \"Buy\" button at the top." },
+            ["tutorial.opengaragecar"] = new[] { "Машина ваша! Откройте вкладку «Гараж» и нажмите «Открыть» на машине.",
+                                                 "The car is yours! Go to the \"Garage\" tab and tap \"Open\" on the car." },
+            ["tutorial.repairandlist"] = new[] { "Почините скрытую неисправность и те узлы, ремонт которых окупается (смотрите «Стоимость»). Потом выставьте машину на продажу по рыночной цене.",
+                                                 "Fix the hidden fault and the parts worth repairing (see \"Value\"). Then put the car on sale at the market price." },
+            ["tutorial.waitforbuyers"] = new[] { "Покупатели приходят с новым днём. Нажмите «Следующий день». Помните: каждый день стоит аренды гаража.",
+                                                 "Buyers come with the new day. Tap \"Next day\". Remember: every day costs garage rent." },
+            ["tutorial.sell"]     = new[] { "Пришли покупатели! Откройте машину в гараже: можно продать сразу или попросить больше. Попросите слишком много, и покупатель уйдёт.",
+                                            "Buyers are here! Open the car in the garage: sell now or ask for more. Ask too much and the buyer leaves." },
+            ["tutorial.done"]     = new[] { "Первая сделка готова! Честные продажи растят репутацию, а с ней и цены. Расширяйте гараж, когда денег хватает на 3–4 машины.",
+                                            "Your first deal is done! Honest sales build reputation, and reputation raises prices. Expand the garage when you can afford 3–4 cars." },
+            ["tutorial.skip"]     = new[] { "Пропустить",                                             "Skip" },
+            ["tutorial.ok"]       = new[] { "Понятно",                                                "Got it" },
+
             // Garage upgrades
             ["upgrade.title"]     = new[] { "Гараж на {0} мест",                                      "Garage for {0} cars" },
             ["upgrade.gives"]     = new[] { "Больше машин сразу, продавцы звонят чаще: {0} объявлений в день. Аренда {1} в день.",

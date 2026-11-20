@@ -29,6 +29,7 @@ namespace CRS.Core.Economy
                 nextBuyerId = buyers.NextId,
                 reputation = Reputation,
                 nextClaimId = nextClaimId,
+                tutorialDone = TutorialDone,
             };
 
             foreach (var claim in claims)
@@ -226,6 +227,7 @@ namespace CRS.Core.Economy
 
             var session = new GameSession(data.seed, data.day, player, market, data.nextBuyerId);
             session.Reputation = data.reputation;
+            session.TutorialDone = data.tutorialDone;
             foreach (var item in data.claims)
                 session.claims.Add(new Claim(item.id, ToCar(item.car), item.amount, item.dueDay, item.odometerFraud, item.defects));
             session.nextClaimId = Math.Max(data.nextClaimId,

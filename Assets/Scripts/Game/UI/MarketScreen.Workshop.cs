@@ -109,6 +109,7 @@ namespace CRS.Game.UI
                 owned.Report.DiagnosticsDone,
                 () => OnCare(UiText.Get("check.diag", lang), Workshop.Diagnose(player, owned), diagnosticsPrice));
 
+            RefreshTutorial();
             if (resetScroll) detailsScroll.ScrollToTop();
         }
 

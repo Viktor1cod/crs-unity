@@ -18,6 +18,8 @@ namespace CRS.Game.UI
         public static readonly Color Toast = new Color(0.02f, 0.03f, 0.05f, 0.92f);
         public static readonly Color Warning = new Color(1f, 0.78f, 0.35f);
         public static readonly Color Danger = new Color(0.93f, 0.36f, 0.33f);
+        /// <summary>Background of tutorial hints: the accent blue, dimmed.</summary>
+        public static readonly Color Tutorial = new Color(0.16f, 0.27f, 0.48f);
 
         /// <summary>Green for good, yellow for worn, red for bad.</summary>
         public static Color Condition(int value) => value >= 70 ? Money : value >= 40 ? Warning : Danger;

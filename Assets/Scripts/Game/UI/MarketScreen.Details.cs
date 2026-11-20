@@ -38,6 +38,7 @@ namespace CRS.Game.UI
             Ui.Layout(Ui.CreateRect("Spacer", header), flexibleWidth: 1);
             detailsMoneyText = Ui.CreateText("Money", header, 40, Theme.Money, FontStyle.Bold, TextAnchor.MiddleRight);
 
+            detailsTutorial = CreateTutorialBanner(panel.transform);
             CreateScrollList(panel.transform, out detailsScroll, out detailsContent);
 
             detailsPanel = panel.gameObject;
@@ -140,6 +141,7 @@ namespace CRS.Game.UI
             else if (deal != null && deal.HasDeal) AddLine(UiText.Format("deal.agreed", lang, MoneyFormat.Format(price)), Theme.Money);
             else AddOfferButtons(listing, price);
 
+            RefreshTutorial();
             if (resetScroll) detailsScroll.ScrollToTop();
         }
 

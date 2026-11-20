@@ -78,6 +78,35 @@ namespace CRS.Core.Cars
             return Generate(cheapestBrand, cheapestModel);
         }
 
+        /// <summary>
+        /// The first car of a new game: an urgent sale of a cheap car with one small hidden fault.
+        /// Checking, haggling, fixing and selling it pays off, so the first deal teaches the whole loop.
+        /// </summary>
+        public Listing GenerateStarter(long budget, int attempts = 2000)
+        {
+            var models = new List<(BrandSpec, CarModelSpec)>();
+            foreach (var brand in brands)
+                foreach (var model in brand.Models)
+                    if (model.MinPrice <= budget / 2) models.Add((brand, model));
+
+            for (int i = 0; i < attempts && models.Count > 0; i++)
+            {
+                var (brand, model) = models[rng.Next(models.Count)];
+                var car = GenerateCar(brand, model);
+                if (car.IsOdometerRolledBack || car.WasTaxi || car.HiddenDefects.Count != 1) continue;
+                if (car.HiddenRepairCost > 600) continue;
+
+                long asking = AskingPrice(car, SellerType.Urgent);
+                if (asking > budget * 0.75) continue;
+                // Enough room for checks, the fix and a profit even without haggling.
+                long margin = CarValuation.ApparentValue(car, gameYear) - asking - car.HiddenRepairCost;
+                if (margin < 400) continue;
+
+                return new Listing(nextId++, car, SellerType.Urgent, asking, DescriptionKeys(car, SellerType.Urgent));
+            }
+            return GenerateAffordable(budget);
+        }
+
         public Listing Generate(BrandSpec brand, CarModelSpec model)
         {
             var car = GenerateCar(brand, model);

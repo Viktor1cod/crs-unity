@@ -56,6 +56,22 @@ namespace CRS.Core.Economy
             claimRng = new Random(unchecked(seed * 13 + 5));
         }
 
+        /// <summary>
+        /// A new game for a real player: the board starts with a good first deal for the tutorial.
+        /// The plain constructor keeps a random board, which tests rely on.
+        /// </summary>
+        public static GameSession NewGame(int seed)
+        {
+            var session = new GameSession(seed);
+            session.Market.PutOnTop(session.Market.GenerateStarter(session.Player.Money));
+            return session;
+        }
+
+        /// <summary>The player finished or skipped the tutorial.</summary>
+        public bool TutorialDone { get; private set; }
+
+        public void FinishTutorial() => TutorialDone = true;
+
         /// <summary>A session rebuilt from a save, see GameSession.Saves.cs.</summary>
         private GameSession(int seed, int day, PlayerState player, Marketplace market, int nextBuyerId)
         {

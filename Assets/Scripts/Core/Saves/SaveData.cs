@@ -26,6 +26,8 @@ namespace CRS.Core.Saves
         public int nextBuyerId = 1;
         public int reputation = Reputation.Start;
         public int nextClaimId = 1;
+        /// <summary>Saves made before the tutorial existed have false here, that only shows it once more.</summary>
+        public bool tutorialDone;
         public List<ClaimData> claims = new List<ClaimData>();
         public List<OwnedCarData> garage = new List<OwnedCarData>();
         public List<ListingData> market = new List<ListingData>();
