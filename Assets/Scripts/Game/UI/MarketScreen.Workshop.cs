@@ -287,6 +287,7 @@ namespace CRS.Game.UI
                 return;
             }
 
+            PlatformRuntime.Instance.SaleSound();
             SaveGame();
             ShowToast(UiText.Format("toast.sold", lang, record.Car.Title(lang),
                 MoneyFormat.Format(record.SalePrice), MoneyFormat.Format(record.Profit)));
@@ -339,9 +340,11 @@ namespace CRS.Game.UI
             switch (Workshop.Repair(player, owned, component))
             {
                 case RepairResult.Success:
+                    PlatformRuntime.Instance.RepairSound();
                     ShowToast(UiText.Format("toast.repaired", lang, part, MoneyFormat.Format(moneyBefore - player.Money)));
                     break;
                 case RepairResult.FixedHiddenProblem:
+                    PlatformRuntime.Instance.RepairSound();
                     ShowToast(UiText.Format("toast.hidden_fixed", lang, part, MoneyFormat.Format(moneyBefore - player.Money)));
                     break;
                 case RepairResult.HiddenProblemFound:
@@ -362,6 +365,7 @@ namespace CRS.Game.UI
             switch (result)
             {
                 case RepairResult.Success:
+                    PlatformRuntime.Instance.RepairSound();
                     ShowToast(UiText.Format("toast.done", lang, what));
                     break;
                 case RepairResult.NotEnoughMoney:

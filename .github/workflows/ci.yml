@@ -34,6 +34,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Test browser platform adapter
+        run: node --test Tests/Browser/platform.test.cjs
+
       - name: Run EditMode tests
         id: tests
         uses: game-ci/unity-test-runner@v4

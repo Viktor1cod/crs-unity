@@ -55,7 +55,8 @@ namespace CRS.Game.UI
 
         private void Awake()
         {
-            lang = Application.systemLanguage == SystemLanguage.Russian ? Language.Ru : Language.En;
+            PlatformRuntime.EnsureCreated();
+            lang = (Language)PlayerPrefs.GetInt("crs.language", PlatformRuntime.RussianByDefault ? (int)Language.Ru : (int)Language.En);
             session = SaveStorage.Load() ?? GameSession.NewGame(System.Environment.TickCount);
             Ui.LoadFont();
             EnsureEventSystem();
@@ -111,16 +112,21 @@ namespace CRS.Game.UI
             Ui.Stretch(background.rectTransform);
             Ui.Vertical(background.gameObject, 12, new RectOffset(24, 24, 16, 16));
 
-            // Row 1: money, day, garage counter, language
+            // Keep money and language on their own row so narrow screens stay readable.
             var top = Ui.CreateRect("TopRow", background.transform);
             Ui.Horizontal(top.gameObject, 20);
             moneyText = Ui.CreateText("Money", top, 40, Theme.Money, FontStyle.Bold);
-            dayText = Ui.CreateText("Day", top, 24, Theme.Text);
-            garageText = Ui.CreateText("Garage", top, 24, Theme.Muted);
+            Ui.Layout(moneyText, minWidth: 180);
             Ui.Layout(Ui.CreateRect("Spacer", top), flexibleWidth: 1);
             Ui.CreateButton("Language", top, 22, Theme.Tab, ToggleLanguage, out langLabel);
 
-            // Row 2: tabs and the next day button
+            var stats = Ui.CreateRect("StatsRow", background.transform);
+            Ui.Horizontal(stats.gameObject, 20);
+            dayText = Ui.CreateText("Day", stats, 24, Theme.Text);
+            Ui.Layout(dayText, flexibleWidth: 1);
+            garageText = Ui.CreateText("Garage", stats, 24, Theme.Muted);
+
+            // Tabs and the next day button
             var tabs = Ui.CreateRect("Tabs", background.transform);
             Ui.Horizontal(tabs.gameObject, 12);
             marketTabImage = (Image)Ui.CreateButton("MarketTab", tabs, 26, Theme.Accent, () => SwitchTab(Tab.Market), out marketTabLabel).targetGraphic;
@@ -196,6 +202,11 @@ namespace CRS.Game.UI
             garageTabImage.color = tab == Tab.Garage ? Theme.Accent : Theme.Tab;
 
             ClearChildren(listContent);
+            if (tab == Tab.Garage)
+            {
+                Ui.CreateButton("Sound", listContent, 20, Theme.Tab, () => { PlatformRuntime.Instance.ToggleSound(); Redraw(false); }, out var soundLabel);
+                soundLabel.text = lang == Language.Ru ? (PlatformRuntime.Instance.Muted ? "Звук: выкл." : "Звук: вкл.") : (PlatformRuntime.Instance.Muted ? "Sound: off" : "Sound: on");
+            }
             if (tab == Tab.Market)
             {
                 if (session.Market.Listings.Count == 0) AddNote(listContent, UiText.Get("market.empty", lang));
@@ -523,6 +534,7 @@ namespace CRS.Game.UI
             switch (session.Buy(listing))
             {
                 case PurchaseResult.Success:
+                    PlatformRuntime.Instance.PurchaseSound();
                     SaveGame();
                     ShowToast(UiText.Format("toast.bought", lang, listing.Car.Title(lang), MoneyFormat.Format(price)));
                     CloseDetails();
@@ -566,6 +578,8 @@ namespace CRS.Game.UI
         private void ToggleLanguage()
         {
             lang = lang == Language.Ru ? Language.En : Language.Ru;
+            PlayerPrefs.SetInt("crs.language", (int)lang);
+            PlayerPrefs.Save();
             Redraw(resetScroll: false);
             if (IsDetailsOpen) RedrawDetails(resetScroll: false);
         }
