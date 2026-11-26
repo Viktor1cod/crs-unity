@@ -206,6 +206,8 @@ namespace CRS.Game.UI
             {
                 Ui.CreateButton("Sound", listContent, 20, Theme.Tab, () => { PlatformRuntime.Instance.ToggleSound(); Redraw(false); }, out var soundLabel);
                 soundLabel.text = lang == Language.Ru ? (PlatformRuntime.Instance.Muted ? "Звук: выкл." : "Звук: вкл.") : (PlatformRuntime.Instance.Muted ? "Sound: off" : "Sound: on");
+                Ui.CreateButton("District", listContent, 22, Theme.Accent, OpenDistrict, out var districtLabel);
+                districtLabel.text = lang == Language.Ru ? "Поездить по району · прототип" : "Drive around the district · prototype";
             }
             if (tab == Tab.Market)
             {
@@ -573,6 +575,19 @@ namespace CRS.Game.UI
         {
             tab = next;
             Redraw(resetScroll: true);
+        }
+
+        private void OpenDistrict()
+        {
+            SaveGame();
+            canvasRoot.gameObject.SetActive(false);
+            enabled = false;
+            CRS.Game.World.WorldPrototype.Open(() =>
+            {
+                canvasRoot.gameObject.SetActive(true);
+                enabled = true;
+                Redraw(resetScroll: false);
+            });
         }
 
         private void ToggleLanguage()

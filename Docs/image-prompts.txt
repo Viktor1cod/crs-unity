@@ -1,0 +1,32 @@
+ПРОМПТЫ ДЛЯ СРАВНЕНИЯ NANO BANANA PRO И GPT IMAGE SUNBURST
+Проект: симулятор перекупа. 26 ноября 2026.
+
+Как сравнивать
+1. Отправьте промпт 1 в обе модели без изменений. По 2 варианта, формат 1536×1024 или ближайший горизонтальный 3:2.
+2. Выберите один автомобиль. Приложите именно его картинку к запросам 2 и 3 в обе модели.
+3. Для промпта 4 приложите выбранный автомобиль как образец стиля.
+4. Сравнивайте: узнаваемость модели, одинаковую геометрию, читаемость в размере 160 пикселей, единые тени и удобство вырезания. Не выбирайте только по количеству деталей.
+5. Это концепты. Игровой автомобиль будет простой 3D-моделью; иллюстрация объявления — отдельным изображением. Не нужно генерировать сотни ракурсов.
+
+ПРОМПТ 1 — ЭТАЛОННЫЙ АВТОМОБИЛЬ
+Create a production concept image for an original indie car-trading simulation set in a fictional Eastern European industrial town. Show ONE affordable late-1990s four-door compact sedan, with an original fictional design, no real manufacturer emblems. Slightly boxy body, rectangular headlights, modest steel wheels, pale muted turquoise paint, dark blue-grey glass, charcoal bumpers. The car should feel lovable and used, not luxurious.
+Visual direction: stylized low-poly 3D with hand-painted graphic surfaces, bold readable silhouette, restrained comic-book influence, broad planes, crisp edges, subtle ambient occlusion, no heavy black outline, no photorealism, no pixel art. Muted asphalt and concrete palette with a small warm ochre accent. Soft daylight from upper left. Clear front-left three-quarter view, near-orthographic camera, whole car visible with generous margin, centered on a plain warm light-grey background. One soft contact shadow. Strong readability as a small inventory thumbnail. Do not include people, text, labels, logos, watermarks, scenic background, multiple cars, dramatic depth of field or lens distortion. Landscape 3:2 composition. The result is a design reference, not a screenshot from an existing game.
+
+ПРОМПТ 2 — СОГЛАСОВАННЫЕ ВИДЫ (ПРИЛОЖИТЬ ЭТАЛОН)
+Use the attached car as the strict design reference. Create a clean vehicle reference sheet with four clearly separated equal panels: front view, left side view, rear view, and top view. Preserve exactly the same body proportions, number and shape of doors and windows, headlights, bumpers, wheels and turquoise colour in every panel. All views orthographic, same scale; no perspective on the front, side, rear or top elevations. Plain light-grey background, no text or annotations. Keep the same stylized low-poly, hand-painted graphic look. Do not redesign the car or add accessories. Leave generous separation between the panels. This sheet will guide a simple 3D model, so geometric consistency matters more than fine detail. Landscape composition.
+Check manually: generative reference sheets can contain inconsistencies and are not dimensional blueprints.
+
+ПРОМПТ 3 — СОСТОЯНИЯ ДЛЯ ОБЪЯВЛЕНИЙ (ПРИЛОЖИТЬ ЭТАЛОН)
+Edit the attached reference image. Preserve the exact vehicle, camera angle, position, framing, lighting, silhouette and background. Change ONLY its surface condition: [STATE]. No new objects, no text, no different wheels, no structural redesign. Keep the visual style and geometry identical to the reference. One complete car, not a comparison sheet.
+Run three separate edits from the original reference, not from one another:
+A: freshly washed used car, clean windows, slightly restored paint, modest highlights; still a used vehicle.
+B: road dust along lower body, mild mud on wheel arches, a few paint scratches; all body panels intact.
+C: a dent in the front-left fender, scratched bumper and a small rusty patch on the lower door; no crash scene, no missing wheels, no fire.
+Transparent background is preferred only if the selected service supports real alpha. Otherwise keep the same plain light-grey background, not a painted checkerboard.
+
+ПРОМПТ 4 — ГАРАЖНЫЙ ДВОР (ПРИЛОЖИТЬ ЭТАЛОН)
+Create an environment concept for the SAME original stylized car-trading game as the attached vehicle. A small believable Eastern European garage courtyard in daylight. One single-storey workshop with a turquoise roller door and warm ochre trim, weathered plaster, flat metal roof, concrete apron, a few stacked tyres and an oil drum. The reference car parked outside establishes scale. An asphalt road connects the entrance to a modest neighbourhood of garages and low industrial buildings. Readable navigable space, uncluttered ground, clear entry to the garage, no obstacles across the driving route.
+Use a fixed elevated camera looking down approximately 55 degrees from horizontal, near-orthographic projection. Stylized low-poly forms, hand-painted colour blocks, crisp silhouettes, restrained comic-book atmosphere, muted blue-grey concrete, warm late-morning light from upper left. Match the car's level of abstraction and palette. No photorealism, no pixel art, no neon cyberpunk city, no famous game logos, no UI, no text, no crowds. Landscape 3:2. This is a visual target for a small playable 3D district, not a finished collision map or a single background image to drive over.
+
+После выбора
+Сохранить эталон машины и двора. Зафиксировать палитру, угол камеры и направление света. Сначала внедрить одну машину и один гараж в Unity, посмотреть на телефоне, потом выпускать весь комплект.
