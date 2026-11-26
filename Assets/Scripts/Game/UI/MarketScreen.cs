@@ -580,14 +580,25 @@ namespace CRS.Game.UI
         private void OpenDistrict()
         {
             SaveGame();
-            canvasRoot.gameObject.SetActive(false);
-            enabled = false;
-            CRS.Game.World.WorldPrototype.Open(() =>
+            try
             {
-                canvasRoot.gameObject.SetActive(true);
-                enabled = true;
-                Redraw(resetScroll: false);
-            });
+                CRS.Game.World.WorldPrototype.Open(() =>
+                {
+                    canvasRoot.gameObject.SetActive(true);
+                    enabled = true;
+                    Redraw(resetScroll: false);
+                });
+                // Hide the trading screen only after the district has initialized successfully.
+                canvasRoot.gameObject.SetActive(false);
+                enabled = false;
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogException(exception);
+                ShowToast(lang == Language.Ru
+                    ? "Не удалось открыть район. Попробуйте обновить страницу."
+                    : "Could not open the district. Try refreshing the page.");
+            }
         }
 
         private void ToggleLanguage()

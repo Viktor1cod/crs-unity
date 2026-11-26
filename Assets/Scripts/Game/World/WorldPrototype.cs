@@ -31,13 +31,24 @@ namespace CRS.Game.World
             var go = new GameObject("WorldPrototype");
             var world = go.AddComponent<WorldPrototype>();
             world.onClose = onClose;
-            world.Build();
+            try { world.Build(); }
+            catch
+            {
+                go.SetActive(false);
+                world.RestoreCameras();
+                Destroy(go);
+                throw;
+            }
         }
 
         private Material Paint(Color color)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
-            var material = new Material(shader);
+            // A Resources material keeps its shader and used variant in player builds.
+            // Shader.Find alone works in the Editor but its shader can be stripped in WebGL.
+            var template = Resources.Load<Material>("World/District");
+            if (template == null || template.shader == null)
+                throw new InvalidOperationException("District material is missing from the build.");
+            var material = new Material(template);
             material.color = color;
             materials.Add(material);
             return material;
