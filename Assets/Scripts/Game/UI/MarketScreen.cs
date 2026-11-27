@@ -304,15 +304,15 @@ namespace CRS.Game.UI
 
             // Photo
             float photoWidth = compact ? 150 : 220;
-            float photoHeight = compact ? 90 : 130;
+            float photoHeight = photoWidth * 2f / 3f;
             var frame = Ui.CreateImage("Photo", row, Theme.PhotoBackground);
             frame.raycastTarget = false;
             Ui.Layout(frame, minWidth: photoWidth, preferredWidth: photoWidth, minHeight: photoHeight, preferredHeight: photoHeight);
             var picture = Ui.CreateImage("Car", frame.transform, Color.white);
-            picture.sprite = CarSprites.Get(car.Model.Body, seed);
+            picture.sprite = CarSprites.Get(car.Model, seed);
             picture.preserveAspect = true;
             picture.raycastTarget = false;
-            Ui.Stretch(picture.rectTransform, 10, 10, 10, 10);
+            Ui.Stretch(picture.rectTransform, 4, 4, 4, 4);
 
             // Title, details, seller text
             var info = Ui.CreateRect("Info", row);

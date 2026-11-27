@@ -5,8 +5,7 @@ using UnityEngine;
 namespace CRS.Game.UI
 {
     /// <summary>
-    /// Simple side-view car pictures drawn in code, one per body type and paint color.
-    /// Placeholder until real car art is added.
+    /// Model illustrations loaded from Resources/Cars, with generated placeholders for other models.
     /// </summary>
     internal static class CarSprites
     {
@@ -27,7 +26,19 @@ namespace CRS.Game.UI
 
         private static readonly Dictionary<int, Sprite> Cache = new Dictionary<int, Sprite>();
 
-        public static Sprite Get(BodyType body, int seed)
+        private static readonly Dictionary<string, Sprite> ModelArt = new Dictionary<string, Sprite>();
+
+        public static Sprite Get(CarModelSpec model, int seed)
+        {
+            if (!ModelArt.TryGetValue(model.Id, out var illustration))
+            {
+                illustration = Resources.Load<Sprite>("Cars/" + model.Id);
+                ModelArt[model.Id] = illustration;
+            }
+            return illustration != null ? illustration : Get(model.Body, seed);
+        }
+
+        private static Sprite Get(BodyType body, int seed)
         {
             int paint = (seed & int.MaxValue) % Paints.Length;
             int key = (int)body * 100 + paint;
