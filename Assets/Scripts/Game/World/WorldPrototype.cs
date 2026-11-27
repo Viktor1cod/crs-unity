@@ -20,9 +20,11 @@ namespace CRS.Game.World
         private Rigidbody car;
         private Camera worldCamera;
         private Text status;
+        private CanvasScaler uiScaler;
+        private int viewportWidth, viewportHeight;
         private Action onClose;
         private float speed;
-        private bool left, right, forward, reverse;
+        private bool left, right, forward, reverse, brake;
         private const float TopSpeed = 16f;
         private static readonly Vector3 Spawn = new Vector3(-40, 0.65f, -35);
 
@@ -78,6 +80,7 @@ namespace CRS.Game.World
             var glass = Paint(new Color(.17f, .30f, .37f));
             var blue = Paint(new Color(.26f, .61f, .78f));
             var orange = Paint(new Color(.91f, .55f, .26f));
+            var serviceColors = new[] { blue, orange, Paint(new Color(.68f, .48f, .36f)), Paint(new Color(.35f, .70f, .59f)) };
             Box("Ground", new Vector3(0, -.5f, 0), new Vector3(140, 1, 120), ground);
             foreach (float x in new[] { -40f, 40f })
                 Box("NorthSouth road", new Vector3(x, .01f, 0), new Vector3(12, .02f, 82), road, false);
@@ -97,17 +100,20 @@ namespace CRS.Game.World
             for (int i = 0; i < positions.Length; i++)
             {
                 var p = positions[i];
-                Box(names[i], p + Vector3.up * 2, new Vector3(16, 4, 12), i == 0 ? blue : wall);
+                Box(names[i], p + Vector3.up * 2, new Vector3(16, 4, 12), serviceColors[i]);
                 Box("Roof", p + Vector3.up * 4.2f, new Vector3(17, .4f, 13), roof, false);
                 float approach = p.z < 0 ? -1 : 1;
-                var marker = Box("Destination", p + new Vector3(0, .06f, approach * 10), new Vector3(8, .04f, 5), orange, false);
+                var marker = Box("Destination", p + new Vector3(0, .06f, approach * 10), new Vector3(8, .04f, 5), serviceColors[i], false);
                 destinations.Add(marker.transform);
+                // Short paved entrances make the coloured parking bays reachable from the ring road.
+                Box("Driveway", p + new Vector3(0, .025f, approach * 14), new Vector3(8, .02f, 8), road, false);
+                Box("Garage door", p + new Vector3(0, 1.4f, approach * 6.02f), new Vector3(6, 2.8f, .08f), glass, false);
                 var sign = new GameObject("Sign");
                 sign.transform.SetParent(transform, false);
                 sign.transform.position = p + new Vector3(0, 5, 0);
                 sign.transform.rotation = Quaternion.Euler(55, 0, 0);
                 var text = sign.AddComponent<TextMesh>();
-                text.text = names[i]; text.font = Ui.Font; text.fontSize = 64; text.characterSize = .12f;
+                text.text = names[i]; text.font = Ui.Font; text.fontSize = 64; text.characterSize = .32f;
                 text.anchor = TextAnchor.MiddleCenter; text.color = Color.white;
                 sign.GetComponent<MeshRenderer>().sharedMaterial = Ui.Font.material;
             }
@@ -144,9 +150,9 @@ namespace CRS.Game.World
             var root = new GameObject("District UI", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             root.transform.SetParent(transform, false);
             root.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
-            var scaler = root.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(900, 600); scaler.matchWidthOrHeight = .5f;
+            uiScaler = root.GetComponent<CanvasScaler>();
+            uiScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            UpdateViewport();
             var top = Ui.CreateImage("Top", root.transform, new Color(.07f, .10f, .13f, .94f));
             top.rectTransform.anchorMin = new Vector2(0, 1); top.rectTransform.anchorMax = Vector2.one;
             top.rectTransform.pivot = new Vector2(.5f, 1); top.rectTransform.sizeDelta = new Vector2(0, 130);
@@ -159,9 +165,10 @@ namespace CRS.Game.World
             controls.anchorMin = Vector2.zero; controls.anchorMax = new Vector2(1, 0);
             controls.pivot = new Vector2(.5f, 0); controls.sizeDelta = new Vector2(0, 90);
             Ui.Horizontal(controls.gameObject, 8, Ui.Pad(12));
-            Hold(controls, "←", value => left = value);
-            Hold(controls, "→", value => right = value);
+            Hold(controls, "<", value => left = value);
+            Hold(controls, ">", value => right = value);
             Ui.Layout(Ui.CreateRect("Space", controls), flexibleWidth: 1);
+            Hold(controls, "Стоп", value => brake = value);
             Hold(controls, "Назад", value => reverse = value);
             Hold(controls, "Газ", value => forward = value);
         }
@@ -169,7 +176,9 @@ namespace CRS.Game.World
         private void Hold(Transform parent, string label, Action<bool> changed)
         {
             var button = Ui.CreateButton(label, parent, 23, Theme.Tab, () => {}, out var text);
-            text.text = label; Ui.Layout(button, minWidth: 70, minHeight: 60);
+            text.text = label;
+            button.GetComponent<HorizontalLayoutGroup>().padding = new RectOffset(10, 10, 12, 12);
+            Ui.Layout(button, minWidth: 76, minHeight: 64);
             button.gameObject.AddComponent<DriveHoldButton>().Changed = changed;
         }
 
@@ -178,17 +187,19 @@ namespace CRS.Game.World
             if (car == null) return;
             float throttle = (forward ? 1 : 0) - (reverse ? 1 : 0);
             float steering = (right ? 1 : 0) - (left ? 1 : 0);
+            bool braking = brake;
 #if ENABLE_INPUT_SYSTEM
             var keys = Keyboard.current;
             if (keys != null)
             {
+                braking |= keys.spaceKey.isPressed;
                 throttle += (keys.wKey.isPressed || keys.upArrowKey.isPressed ? 1 : 0) - (keys.sKey.isPressed || keys.downArrowKey.isPressed ? 1 : 0);
                 steering += (keys.dKey.isPressed || keys.rightArrowKey.isPressed ? 1 : 0) - (keys.aKey.isPressed || keys.leftArrowKey.isPressed ? 1 : 0);
             }
 #endif
             throttle = Mathf.Clamp(throttle, -1, 1); steering = Mathf.Clamp(steering, -1, 1);
             float actualSpeed = Vector3.Dot(car.linearVelocity, car.transform.forward);
-            speed = Mathf.MoveTowards(actualSpeed, throttle * (throttle < 0 ? 7 : TopSpeed), (throttle == 0 ? 9 : 12) * Time.fixedDeltaTime);
+            speed = Mathf.MoveTowards(actualSpeed, braking ? 0 : throttle * (throttle < 0 ? 7 : TopSpeed), (braking ? 30 : throttle == 0 ? 9 : 12) * Time.fixedDeltaTime);
             car.linearVelocity = car.transform.forward * speed;
             car.angularVelocity = Vector3.zero;
             float turn = steering * Mathf.Clamp(speed / 7, -1, 1) * 90 * Time.fixedDeltaTime;
@@ -198,6 +209,7 @@ namespace CRS.Game.World
         private void LateUpdate()
         {
             if (car == null) return;
+            UpdateViewport();
             Follow(false);
             int nearest = 0; float distance = float.MaxValue;
             for (int i = 0; i < destinations.Count; i++)
@@ -205,8 +217,19 @@ namespace CRS.Game.World
                 float d = Vector3.Distance(car.position, destinations[i].position);
                 if (d < distance) { distance = d; nearest = i; }
             }
-            status.text = distance < 7 ? names[nearest] + " · место встречи. Сервисы подключим следующим этапом." :
-                "Район · WASD / стрелки или кнопки снизу\n" + names[nearest] + ": " + Mathf.RoundToInt(distance) + " м";
+            status.text = distance < 7 ? names[nearest] + " · парковка\nУслуги появятся позже. Пока можно исследовать район." :
+                "WASD / стрелки · пробел: тормоз\n" + names[nearest] + ": " + Mathf.RoundToInt(distance) + " м";
+        }
+
+        private void UpdateViewport()
+        {
+            if (viewportWidth == Screen.width && viewportHeight == Screen.height) return;
+            viewportWidth = Screen.width; viewportHeight = Screen.height;
+            bool portrait = viewportWidth < viewportHeight;
+            uiScaler.referenceResolution = portrait ? new Vector2(600, 900) : new Vector2(900, 600);
+            uiScaler.matchWidthOrHeight = portrait ? 0 : 1;
+            // Keep a useful horizontal view on a phone instead of cropping the road to a narrow strip.
+            worldCamera.orthographicSize = Mathf.Max(24, 18f / Mathf.Max(.25f, worldCamera.aspect));
         }
 
         private void Follow(bool snap)
@@ -214,7 +237,7 @@ namespace CRS.Game.World
             var target = car.position + new Vector3(0, 32, -22.4f);
             worldCamera.transform.position = snap ? target : Vector3.Lerp(worldCamera.transform.position, target, 1 - Mathf.Exp(-8 * Time.unscaledDeltaTime));
         }
-        private void ClearInput() { left = right = forward = reverse = false; }
+        private void ClearInput() { left = right = forward = reverse = brake = false; }
         private void OnApplicationFocus(bool focus) { if (!focus) { ClearInput(); if (car != null) car.linearVelocity = Vector3.zero; } }
         private void OnApplicationPause(bool pause) { if (pause) OnApplicationFocus(false); }
         private void ResetCar() { ClearInput(); speed = 0; car.linearVelocity = Vector3.zero; car.angularVelocity = Vector3.zero; car.position = Spawn; car.rotation = Quaternion.identity; Follow(true); }
@@ -226,9 +249,21 @@ namespace CRS.Game.World
     public sealed class DriveHoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
     {
         public Action<bool> Changed;
-        public void OnPointerDown(PointerEventData data) => Changed?.Invoke(true);
-        public void OnPointerUp(PointerEventData data) => Changed?.Invoke(false);
-        public void OnPointerExit(PointerEventData data) => Changed?.Invoke(false);
-        private void OnDisable() => Changed?.Invoke(false);
+        private int? pointer;
+        public void OnPointerDown(PointerEventData data)
+        {
+            if (pointer.HasValue) return;
+            pointer = data.pointerId;
+            Changed?.Invoke(true);
+        }
+        public void OnPointerUp(PointerEventData data) { Release(data.pointerId); }
+        public void OnPointerExit(PointerEventData data) { Release(data.pointerId); }
+        private void Release(int id)
+        {
+            if (pointer != id) return;
+            pointer = null;
+            Changed?.Invoke(false);
+        }
+        private void OnDisable() { pointer = null; Changed?.Invoke(false); }
     }
 }
